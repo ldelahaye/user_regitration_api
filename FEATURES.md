@@ -11,5 +11,5 @@ Feature inventory for the User Registration API.
 | User registration (`POST /users`) | Done | API + Domain | `api/routers/users.py`, `domain/services.py` |
 | Email verification (4-digit code) | Done | Infrastructure | `infrastructure/email/client.py`, `domain/services.py` |
 | Account activation (Basic Auth) | Done | API + Domain | `api/routers/users.py`, `core/security.py` |
-| Integration tests | Pending | Tests | |
+| Integration tests | Done | Tests | `tests/integration/` |
 | Architecture documentation | Done | Docs | `ARCHITECTURE.md` |

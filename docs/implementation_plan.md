@@ -149,14 +149,14 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
 
 ---
 
-## Commit 8 — Integration Tests & Docker Test Setup
+## Commit 8 ✅ — Integration Tests & Docker Test Setup
 
 > End-to-end tests covering the full registration flow.
 
-- [ ] Create integration test: register → receive code → activate with Basic Auth
-- [ ] Add `docker-compose.test.yml` for running tests with real PostgreSQL
-- [ ] Update CI to run integration tests
-- [ ] Update README — add integration test instructions
+- [x] Create integration test: register → receive code → activate with Basic Auth
+- [x] Add `docker-compose.test.yml` for running tests with real PostgreSQL
+- [x] Update CI to run integration tests
+- [x] Update README — add integration test instructions
 
 ---
 
