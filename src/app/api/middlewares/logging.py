@@ -54,20 +54,16 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 duration_ms,
             )
             raise
+        else:
+            duration_ms = (time.monotonic() - start_time) * 1000
+            response.headers[CORRELATION_ID_HEADER] = cid
+            logger.info(
+                "%s %s %d %.2fms",
+                request.method,
+                request.url.path,
+                response.status_code,
+                duration_ms,
+            )
+            return response
         finally:
             correlation_id_var.reset(token)
-
-        duration_ms = (time.monotonic() - start_time) * 1000
-        response.headers[CORRELATION_ID_HEADER] = cid
-
-        token = correlation_id_var.set(cid)
-        logger.info(
-            "%s %s %d %.2fms",
-            request.method,
-            request.url.path,
-            response.status_code,
-            duration_ms,
-        )
-        correlation_id_var.reset(token)
-
-        return response

@@ -5,11 +5,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
+from app.domain.models import SUPPORTED_LANGUAGES
+
+_LANG_PATTERN = f"^({'|'.join(SUPPORTED_LANGUAGES)})$"
+
 
 class UserRegisterRequest(BaseModel):
     email: EmailStr
     password: SecretStr = Field(min_length=8, max_length=128)
-    lang: str = Field(pattern="^(fr|en|es|it|de)$")
+    lang: str = Field(pattern=_LANG_PATTERN)
 
 
 class UserResponse(BaseModel):

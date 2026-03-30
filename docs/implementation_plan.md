@@ -160,14 +160,14 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
 
 ---
 
-## Commit 9 — Final Documentation Review
+## Commit 9 ✅ — Final Documentation Review
 
 > Final pass on all documentation, verify all spec requirements.
 
-- [ ] Update `ARCHITECTURE.md` — final architecture diagram with all components
-- [ ] Update `FEATURES.md` — verify all features marked as done
-- [ ] Update README — final API documentation, all endpoints, complete instructions
-- [ ] Verify all spec requirements are met:
+- [x] Update `ARCHITECTURE.md` — final architecture diagram with all components
+- [x] Update `FEATURES.md` — verify all features marked as done
+- [x] Update README — final API documentation, all endpoints, complete instructions
+- [x] Verify all spec requirements are met:
   - [x] Create user with email and password
   - [x] Send 4-digit code by email
   - [x] Activate with Basic Auth + code
@@ -175,5 +175,5 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
   - [x] FastAPI: async/await, Depends, Pydantic, exception handlers, lifespan
   - [x] No ORM, raw SQL with asyncpg
   - [x] Docker + docker-compose
-  - [x] Tests
+  - [x] Tests (unit + integration)
   - [x] Architecture schema

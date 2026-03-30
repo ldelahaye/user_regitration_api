@@ -24,7 +24,7 @@ def create_email_service(settings: Settings) -> EmailService:
     logger.info("Email service: HTTP API (%s)", settings.email_api_url)
     return HttpEmailService(
         api_url=settings.email_api_url,
-        api_key=settings.email_api_key,
+        api_key=settings.email_api_key.get_secret_value(),
         from_email=settings.email_from,
     )
 
@@ -52,8 +52,6 @@ class HttpEmailService(EmailService):
             "to": email,
             "subject": subject,
             "body": body,
-            "code": code,
-            "validity_minutes": validity_minutes,
         }
         headers = {"Authorization": f"Bearer {self._api_key}"}
         try:

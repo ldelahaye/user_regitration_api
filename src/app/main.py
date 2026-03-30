@@ -2,7 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 
 from app.api.middlewares.logging import LoggingMiddleware
 from app.api.routers.users import router as users_router
@@ -48,5 +48,14 @@ app.include_router(users_router)
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
+async def health_check(request: Request) -> dict[str, str]:
+    try:
+        async with request.app.state.db_pool.acquire() as conn:
+            await conn.execute("SELECT 1")
+    except Exception:
+        logger.warning("Health check failed: database unreachable")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unreachable",
+        ) from None
     return {"status": "healthy"}
