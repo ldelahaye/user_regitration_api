@@ -1,5 +1,7 @@
 """HTTP Basic Auth credential verification."""
 
+import asyncio
+
 import bcrypt
 from fastapi import HTTPException, status
 from fastapi.security import HTTPBasicCredentials
@@ -23,7 +25,7 @@ async def verify_credentials(
     """
     user = await user_repository.get_by_email(credentials.username)
     hash_to_check = user.password_hash if user is not None else _DUMMY_HASH
-    password_valid = bcrypt.checkpw(credentials.password.encode(), hash_to_check.encode())
+    password_valid = await asyncio.to_thread(bcrypt.checkpw, credentials.password.encode(), hash_to_check.encode())
 
     if not password_valid or user is None:
         raise HTTPException(

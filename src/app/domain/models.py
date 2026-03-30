@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+SUPPORTED_LANGUAGES: tuple[str, ...] = ("fr", "en", "es", "it", "de")
+
 
 @dataclass(frozen=True)
 class User:

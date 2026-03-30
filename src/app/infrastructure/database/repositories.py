@@ -5,6 +5,7 @@ from uuid import UUID
 
 import asyncpg
 
+from app.core.exceptions import UserAlreadyExistsError
 from app.domain.models import ActivationCode, User
 from app.domain.ports import ActivationCodeRepository, UserRepository
 
@@ -14,14 +15,17 @@ class PgUserRepository(UserRepository):
         self._conn = conn
 
     async def create(self, email: str, password_hash: str, lang: str) -> User:
-        row = await self._conn.fetchrow(
-            "INSERT INTO users (email, password_hash, lang) "
-            "VALUES ($1, $2, $3) "
-            "RETURNING id, email, password_hash, is_active, lang, created_at",
-            email,
-            password_hash,
-            lang,
-        )
+        try:
+            row = await self._conn.fetchrow(
+                "INSERT INTO users (email, password_hash, lang) "
+                "VALUES ($1, $2, $3) "
+                "RETURNING id, email, password_hash, is_active, lang, created_at",
+                email,
+                password_hash,
+                lang,
+            )
+        except asyncpg.UniqueViolationError:
+            raise UserAlreadyExistsError from None
         return _row_to_user(row)
 
     async def get_by_email(self, email: str) -> User | None:
@@ -81,6 +85,12 @@ class PgActivationCodeRepository(ActivationCodeRepository):
         await self._conn.execute(
             "UPDATE activation_codes SET used_at = now() WHERE id = $1",
             code_id,
+        )
+
+    async def invalidate_all(self, user_id: UUID) -> None:
+        await self._conn.execute(
+            "UPDATE activation_codes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL AND expires_at > now()",
+            user_id,
         )
 
 

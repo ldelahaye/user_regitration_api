@@ -33,6 +33,9 @@ class ActivationCodeRepository(ABC):
     @abstractmethod
     async def mark_used(self, code_id: UUID) -> None: ...
 
+    @abstractmethod
+    async def invalidate_all(self, user_id: UUID) -> None: ...
+
 
 class EmailService(ABC):
     @abstractmethod

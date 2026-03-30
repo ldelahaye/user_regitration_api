@@ -1,7 +1,10 @@
 """Tests for custom exception handlers — structured error responses."""
 
-from fastapi import APIRouter
-from httpx import AsyncClient
+from collections.abc import AsyncIterator
+
+import pytest
+from fastapi import APIRouter, FastAPI
+from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
 
 from app.core.exceptions import (
@@ -10,10 +13,9 @@ from app.core.exceptions import (
     InvalidActivationCodeError,
     UserAlreadyExistsError,
     UserNotFoundError,
+    register_exception_handlers,
 )
-from app.main import app
 
-# Temporary router to trigger exceptions in tests
 _test_router = APIRouter(prefix="/_test_exceptions", tags=["test"])
 
 
@@ -56,11 +58,20 @@ async def _validate_body(body: _ValidationBody) -> _ValidationBody:
     return body
 
 
-app.include_router(_test_router)
+_test_app = FastAPI()
+register_exception_handlers(_test_app)
+_test_app.include_router(_test_router)
 
 
-async def test_user_already_exists_returns_409(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/user-already-exists")
+@pytest.fixture
+async def exception_client() -> AsyncIterator[AsyncClient]:
+    transport = ASGITransport(app=_test_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+
+async def test_user_already_exists_returns_409(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/user-already-exists")
 
     assert response.status_code == 409
     body = response.json()
@@ -68,8 +79,8 @@ async def test_user_already_exists_returns_409(client: AsyncClient) -> None:
     assert body["error_code"] == "USER_ALREADY_EXISTS"
 
 
-async def test_user_not_found_returns_404(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/user-not-found")
+async def test_user_not_found_returns_404(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/user-not-found")
 
     assert response.status_code == 404
     body = response.json()
@@ -77,8 +88,8 @@ async def test_user_not_found_returns_404(client: AsyncClient) -> None:
     assert body["error_code"] == "USER_NOT_FOUND"
 
 
-async def test_invalid_activation_code_returns_400(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/invalid-activation-code")
+async def test_invalid_activation_code_returns_400(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/invalid-activation-code")
 
     assert response.status_code == 400
     body = response.json()
@@ -86,8 +97,8 @@ async def test_invalid_activation_code_returns_400(client: AsyncClient) -> None:
     assert body["error_code"] == "INVALID_ACTIVATION_CODE"
 
 
-async def test_activation_code_expired_returns_400(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/activation-code-expired")
+async def test_activation_code_expired_returns_400(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/activation-code-expired")
 
     assert response.status_code == 400
     body = response.json()
@@ -95,8 +106,8 @@ async def test_activation_code_expired_returns_400(client: AsyncClient) -> None:
     assert body["error_code"] == "ACTIVATION_CODE_EXPIRED"
 
 
-async def test_email_send_error_returns_502(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/email-send-error")
+async def test_email_send_error_returns_502(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/email-send-error")
 
     assert response.status_code == 502
     body = response.json()
@@ -104,8 +115,8 @@ async def test_email_send_error_returns_502(client: AsyncClient) -> None:
     assert body["error_code"] == "EMAIL_SEND_FAILED"
 
 
-async def test_domain_error_with_custom_detail(client: AsyncClient) -> None:
-    response = await client.get("/_test_exceptions/custom-detail")
+async def test_domain_error_with_custom_detail(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/_test_exceptions/custom-detail")
 
     assert response.status_code == 404
     body = response.json()
@@ -113,8 +124,8 @@ async def test_domain_error_with_custom_detail(client: AsyncClient) -> None:
     assert body["error_code"] == "USER_NOT_FOUND"
 
 
-async def test_http_exception_returns_structured_format(client: AsyncClient) -> None:
-    response = await client.get("/nonexistent-path")
+async def test_http_exception_returns_structured_format(exception_client: AsyncClient) -> None:
+    response = await exception_client.get("/nonexistent-path")
 
     assert response.status_code == 404
     body = response.json()
@@ -122,8 +133,8 @@ async def test_http_exception_returns_structured_format(client: AsyncClient) -> 
     assert body["error_code"] == "HTTP_ERROR"
 
 
-async def test_validation_error_returns_structured_format(client: AsyncClient) -> None:
-    response = await client.post("/_test_exceptions/validate", json={"name": 123})
+async def test_validation_error_returns_structured_format(exception_client: AsyncClient) -> None:
+    response = await exception_client.post("/_test_exceptions/validate", json={"name": 123})
 
     assert response.status_code == 422
     body = response.json()

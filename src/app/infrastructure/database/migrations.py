@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS activation_codes (
     expires_at TIMESTAMPTZ NOT NULL,
     used_at    TIMESTAMPTZ
 );
+
+CREATE INDEX IF NOT EXISTS idx_activation_codes_user_code
+    ON activation_codes (user_id, code, expires_at);
 """
 
 

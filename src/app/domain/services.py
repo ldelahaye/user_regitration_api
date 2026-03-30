@@ -1,5 +1,6 @@
 """Domain services — business logic orchestration."""
 
+import asyncio
 import logging
 import secrets
 from uuid import UUID
@@ -37,7 +38,7 @@ class UserService:
         if existing is not None:
             raise UserAlreadyExistsError
 
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        password_hash = await asyncio.to_thread(lambda: bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode())
         return await self._user_repository.create(email, password_hash, lang)
 
     async def send_activation_code(self, user_id: UUID) -> ActivationCode:
@@ -60,6 +61,7 @@ class UserService:
         activation_code = await self._activation_code_repository.get_active_code(user.id, code)
         if activation_code is None:
             expired = await self._activation_code_repository.get_expired_code(user.id, code)
+            await self._activation_code_repository.invalidate_all(user.id)
             if expired is not None:
                 raise ActivationCodeExpiredError
             raise InvalidActivationCodeError
