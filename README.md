@@ -74,6 +74,22 @@ uv run uvicorn app.main:app --reload
 uv run pytest
 ```
 
+### Integration Tests
+
+Integration tests require a real PostgreSQL instance.
+
+**Using Docker Compose:**
+```bash
+docker compose -f docker-compose.test.yml up -d
+uv run pytest -m integration
+docker compose -f docker-compose.test.yml down
+```
+
+**Custom database URL:**
+```bash
+TEST_DATABASE_URL=postgresql://user:pass@host:5432/dbname uv run pytest -m integration
+```
+
 ### Code Quality
 
 ```bash
