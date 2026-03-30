@@ -93,6 +93,8 @@ uv run mypy
 |--------|------|-------------|-------------|
 | `GET` | `/health` | Health check | 200 |
 | `POST` | `/users` | Register a new user | 201 |
+| `POST` | `/users/{user_id}/activation-code` | Send 4-digit activation code | 201 |
+| `POST` | `/users/activate` | Activate account (Basic Auth + code) | 200 |
 
 ### `POST /users`
 
@@ -102,9 +104,12 @@ Register a new user with email and password.
 ```json
 {
   "email": "user@example.com",
-  "password": "securepassword123"
+  "password": "securepassword123",
+  "lang": "fr"
 }
 ```
+
+`lang` is required. Supported values: `fr`, `en`, `es`, `it`, `de`.
 
 **Response (201):**
 ```json
@@ -112,13 +117,56 @@ Register a new user with email and password.
   "id": "uuid",
   "email": "user@example.com",
   "is_active": false,
+  "lang": "fr",
   "created_at": "2026-03-30T12:00:00Z"
 }
 ```
 
 **Errors:**
 - `409` — Email already registered (`USER_ALREADY_EXISTS`)
-- `422` — Validation error (invalid email, password too short)
+- `422` — Validation error (invalid email, password too short, unsupported lang)
+
+### `POST /users/{user_id}/activation-code`
+
+Generate and send a 4-digit activation code by email. Code expires after 1 minute.
+
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "expires_at": "2026-03-30T12:01:00Z"
+}
+```
+
+**Errors:**
+- `404` — User not found (`USER_NOT_FOUND`)
+
+### `POST /users/activate`
+
+Activate a user account with HTTP Basic Auth and a 4-digit activation code.
+
+**Authentication:** HTTP Basic Auth (email as username, password as password).
+
+**Request body:**
+```json
+{
+  "code": "1234"
+}
+```
+
+**Response (200):**
+```json
+{
+  "detail": "Account activated successfully"
+}
+```
+
+**Errors:**
+- `400` — Invalid activation code (`INVALID_ACTIVATION_CODE`)
+- `400` — Activation code expired (`ACTIVATION_CODE_EXPIRED`)
+- `401` — Invalid credentials (wrong email or password)
+- `422` — Validation error (code must be exactly 4 digits)
 
 ## Project Structure
 

@@ -36,85 +36,92 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
 
 ---
 
-## Commit 3 — Custom Exception Handling
+## Commit 3 ✅ — Custom Exception Handling
 
 > Domain exceptions + custom exception handlers for structured error responses.
 
-- [ ] Create `core/exceptions.py` — domain exception classes:
+- [x] Create `core/exceptions.py` — domain exception classes:
   - `UserAlreadyExistsError`
   - `UserNotFoundError`
   - `InvalidActivationCodeError`
   - `ActivationCodeExpiredError`
   - `EmailSendError`
-- [ ] Register custom exception handlers in `main.py`:
+- [x] Register custom exception handlers in `main.py`:
   - Domain exceptions → structured JSON `{"detail": "...", "error_code": "..."}`
   - Override `RequestValidationError` → consistent format
   - Override `StarletteHTTPException` → consistent format
-- [ ] Add tests for each exception handler (correct status code, response format)
-- [ ] Update FEATURES.md — mark exception handling as done
+- [x] Add tests for each exception handler (correct status code, response format)
+- [x] Update FEATURES.md — mark exception handling as done
 
 ---
 
-## Commit 4 — Database Layer (PostgreSQL)
+## Commit 4 ✅ — Database Layer (PostgreSQL)
 
 > PostgreSQL connection pool with asyncpg, schema migration, repository pattern.
 
-- [ ] Create `infrastructure/database/client.py` — asyncpg pool management (init/close in lifespan)
-- [ ] Startup: initialize pool, run test query (`SELECT 1`), log DB connection status (success or failure)
-- [ ] Shutdown: wait for all active transactions to complete, close all pool connections, log shutdown confirmation
-- [ ] Create `infrastructure/database/migrations.py` — SQL schema creation on startup:
-  - `users` table: id (UUID), email (unique), password_hash, is_active, created_at
+- [x] Create `infrastructure/database/client.py` — asyncpg pool management (init/close in lifespan)
+- [x] Startup: initialize pool, run test query (`SELECT 1`), log DB connection status
+- [x] Shutdown: close all pool connections, log shutdown confirmation
+- [x] Create `infrastructure/database/migrations.py` — SQL schema creation on startup:
+  - `users` table: id (UUID), email (unique), password_hash, is_active, lang, created_at
   - `activation_codes` table: id (UUID), user_id (FK), code (4 digits), expires_at, used_at
-- [ ] Create `domain/models.py` — domain entities (User, ActivationCode) as dataclasses
-- [ ] Create `domain/ports.py` — abstract repository interfaces (UserRepository, ActivationCodeRepository)
-- [ ] Create `infrastructure/database/repositories.py` — asyncpg implementations (raw SQL, no ORM)
-- [ ] Create DB dependency with `Depends(yield)` pattern
-- [ ] Update `core/config.py` — add DB settings
-- [ ] Add tests with test database (or dependency override)
-- [ ] Update ARCHITECTURE.md — add database layer details
-- [ ] Update FEATURES.md — mark database layer as done
+- [x] Create `domain/models.py` — domain entities (User, ActivationCode) as dataclasses
+- [x] Create `domain/ports.py` — abstract repository interfaces (UserRepository, ActivationCodeRepository)
+- [x] Create `infrastructure/database/repositories.py` — asyncpg implementations (raw SQL, no ORM)
+- [x] Create DB dependency with `Depends(yield)` pattern + transaction commit/rollback
+- [x] Pool stored in `app.state`, single connection per request shared across repositories
+- [x] Update `core/config.py` — add DB settings (pool size)
+- [x] Add integration tests with real PostgreSQL
+- [x] Update ARCHITECTURE.md — add database layer details
+- [x] Update FEATURES.md — mark database layer as done
 
 ---
 
-## Commit 5 — User Registration Endpoint
+## Commit 5 ✅ — User Registration Endpoint
 
 > `POST /users` — create a user with email and password.
 
-- [ ] Create `api/schemas/users.py` — Pydantic models:
-  - `UserRegisterRequest(email: EmailStr, password: SecretStr)` with validation
-  - `UserResponse(id, email, is_active, created_at)`
-- [ ] Create `domain/services.py` — `UserService` with registration logic:
+- [x] Create `api/schemas/users.py` — Pydantic models:
+  - `UserRegisterRequest(email: EmailStr, password: SecretStr, lang: str)` with validation
+  - `UserResponse(id, email, is_active, lang, created_at)`
+- [x] Create `domain/services.py` — `UserService` with registration logic:
   - Hash password with bcrypt
   - Check email uniqueness
   - Persist user via repository
-- [ ] Create `api/routers/users.py` — `APIRouter(prefix="/users", tags=["users"])`
+- [x] Create `api/routers/users.py` — `APIRouter(prefix="/users", tags=["users"])`
   - `POST /users` → 201 + `UserResponse`
   - Raise `UserAlreadyExistsError` if duplicate email
-- [ ] Create `api/dependencies.py` — service injection via `Depends()`
-- [ ] Include router in `main.py`
-- [ ] Add tests: successful registration, duplicate email, invalid email, weak password
-- [ ] Update ARCHITECTURE.md — add request flow diagram for registration
-- [ ] Update FEATURES.md — mark user registration as done
-- [ ] Update README — add API endpoint documentation
+- [x] Create `api/dependencies.py` — service injection via `Depends()`
+- [x] Include router in `main.py`
+- [x] Add tests: successful registration, duplicate email, invalid email, weak password, invalid lang
+- [x] Update FEATURES.md — mark user registration as done
+- [x] Update README — add API endpoint documentation
 
 ---
 
-## Commit 6 — Email Service (Third-Party)
+## Commit 6 ✅ — Email Service (Third-Party)
 
 > Send 4-digit verification code by email. SMTP treated as third-party HTTP API.
 
-- [ ] Add `EmailService` abstract interface to `domain/ports.py`
-- [ ] Create `infrastructure/email/client.py` — implementation:
-  - Log the 4-digit code to console (as allowed by spec)
-  - Structure as HTTP client call to third-party SMTP API (mockable)
-- [ ] Startup: initialize email client, verify SMTP server connectivity, log status (reachable or unreachable)
-- [ ] Shutdown: close email client connections, log shutdown confirmation
-- [ ] Generate 4-digit activation code, store in DB with 1-minute expiry
-- [ ] Create `POST /users/{user_id}/activation-code` endpoint:
-  - Generate code, save to DB, send via email service
-- [ ] Add tests with email service dependency override (mock)
-- [ ] Update ARCHITECTURE.md — add email service as external dependency
-- [ ] Update FEATURES.md — mark email verification as done
+- [x] Add `EmailService` abstract interface to `domain/ports.py` (`check_connectivity`, `send_activation_code`, `close`)
+- [x] Create `infrastructure/email/client.py` — two implementations:
+  - `HttpEmailService`: real HTTP client (`httpx.AsyncClient`) calling SMTP API with Bearer auth
+  - `ConsoleEmailService`: logs activation codes to console (when `APP_EMAIL_MOCK=true`)
+  - `create_email_service()` factory selects implementation based on config
+- [x] Config: `APP_EMAIL_MOCK`, `APP_EMAIL_API_URL`, `APP_EMAIL_API_KEY`, `APP_EMAIL_FROM`, `APP_ACTIVATION_CODE_TTL_MINUTES`
+- [x] Startup: create email service via factory, verify SMTP connectivity (`HEAD` request, log reachable/unreachable), load templates
+- [x] Shutdown: close email client connections, log shutdown confirmation
+- [x] Generate 4-digit activation code (`secrets.randbelow`), store in DB with configurable TTL (default 1 min)
+- [x] Create `POST /users/{user_id}/activation-code` endpoint (UUID path param validated by FastAPI)
+- [x] Transactional safety: code persisted first, if email fails → transaction rollback (FastAPI yield dependency)
+- [x] `get_active_code` SQL filters `expires_at > now()` — expired codes are rejected
+- [x] `HttpEmailService` converts `httpx.HTTPError` → `EmailSendError` (502)
+- [x] Multilingual email templates (fr, en, es, it, de) loaded from `.txt` files at startup
+- [x] `User.lang` field added across full stack (model, migration, repo, schema, service)
+- [x] Add tests: activation code send (201, 404), invalid lang (422)
+- [x] Add integration tests: rollback on email failure, commit on success (real PostgreSQL)
+- [x] Update ARCHITECTURE.md — email service section, transaction flow diagram, lang in schema
+- [x] Update FEATURES.md — mark email verification as done
 
 ---
 
@@ -122,10 +129,10 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
 
 > `POST /users/activate` with Basic Auth + 4-digit code.
 
-- [ ] Create `core/security.py` — `HTTPBasic` dependency, credential verification
+- [ ] Create `core/security.py` — `HTTPBasic` dependency, credential verification with `secrets.compare_digest`
 - [ ] Create `api/schemas/users.py` — `ActivationRequest(code: str)` with 4-digit validation
 - [ ] Add activation logic to `UserService`:
-  - Verify Basic Auth (email + password)
+  - Verify Basic Auth (email + password via bcrypt)
   - Validate code matches and not expired (1 minute TTL)
   - Mark user as active
   - Raise `InvalidActivationCodeError` or `ActivationCodeExpiredError`

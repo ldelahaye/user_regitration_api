@@ -13,6 +13,8 @@ async def client() -> AsyncIterator[AsyncClient]:
         patch("app.main.init_pool", new_callable=AsyncMock) as mock_init,
         patch("app.main.run_migrations", new_callable=AsyncMock),
         patch("app.main.close_pool", new_callable=AsyncMock),
+        patch("app.main.create_email_service", return_value=AsyncMock()),
+        patch("app.main.load_templates"),
     ):
         mock_init.return_value = AsyncMock()
         transport = ASGITransport(app=app)

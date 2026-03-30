@@ -11,6 +11,7 @@ class User:
     email: str
     password_hash: str
     is_active: bool
+    lang: str
     created_at: datetime
 
 

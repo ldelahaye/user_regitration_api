@@ -69,14 +69,23 @@ sequenceDiagram
     participant R as Router
     participant S as Service
     participant DB as PostgreSQL
+    participant E as Email API
 
     C->>M: HTTP Request
     M->>M: Generate Correlation ID
     M->>R: Forward Request
     R->>R: Validate (Pydantic)
     R->>S: Call Service
+    S->>DB: BEGIN transaction
     S->>DB: Query/Insert
     DB-->>S: Result
+    S->>E: Send email (activation code)
+    E-->>S: OK / Error
+    alt Email success
+        S->>DB: COMMIT
+    else Email failure
+        S->>DB: ROLLBACK
+    end
     S-->>R: Domain Model
     R-->>M: HTTP Response
     M->>M: Log request (method, path, status, duration)
@@ -91,6 +100,7 @@ users
 ├── email         VARCHAR(320) UNIQUE NOT NULL
 ├── password_hash TEXT NOT NULL
 ├── is_active     BOOLEAN DEFAULT FALSE
+├── lang          VARCHAR(5) NOT NULL DEFAULT 'fr'
 └── created_at    TIMESTAMPTZ DEFAULT now()
 
 activation_codes
@@ -105,12 +115,21 @@ activation_codes
 
 1. **Startup**: `init_pool()` creates asyncpg connection pool, verifies connectivity with `SELECT 1`
 2. **Migrations**: `run_migrations()` applies schema (idempotent `CREATE TABLE IF NOT EXISTS`)
-3. **Request**: `get_connection()` dependency acquires a connection from the pool, releases after response
+3. **Request**: `get_connection()` yield dependency acquires a connection, starts a transaction, commits on success or rollbacks on error (following FastAPI's yield + try pattern)
 4. **Shutdown**: `close_pool()` closes all pool connections
+
+## Email Service
+
+The SMTP server is treated as a **third-party HTTP API** service. Two implementations exist behind the `EmailService` port:
+
+- **`HttpEmailService`**: sends activation codes via HTTP POST to an external SMTP API (`APP_EMAIL_API_URL`), with Bearer token auth
+- **`ConsoleEmailService`**: logs activation codes to the console (used when `APP_EMAIL_MOCK=true`)
+
+Email templates are multilingual (fr, en, es, it, de) and loaded from `.txt` files at startup (`infrastructure/email/templates/`). The user's `lang` field determines which template is used.
 
 ## External Services
 
 | Service | Role | Connection |
 |---------|------|------------|
 | PostgreSQL 17 | User and activation code storage | asyncpg connection pool |
-| SMTP (third-party) | Send verification emails | HTTP API call |
+| SMTP (third-party) | Send verification emails | HTTP API call (`httpx.AsyncClient`) |
