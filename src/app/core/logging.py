@@ -2,6 +2,8 @@ import logging
 import logging.config
 from typing import Any
 
+from app.api.middlewares.logging import CorrelationIdFilter
+
 
 def setup_logging(*, debug: bool = False) -> None:
     """Configure structured logging for the application."""
@@ -47,3 +49,4 @@ def setup_logging(*, debug: bool = False) -> None:
     }
 
     logging.config.dictConfig(config)
+    logging.getLogger().addFilter(CorrelationIdFilter())

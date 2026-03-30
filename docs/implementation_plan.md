@@ -125,21 +125,27 @@ Documentation (ARCHITECTURE.md, FEATURES.md, README) is created early and update
 
 ---
 
-## Commit 7 — Account Activation Endpoint
+## Commit 7 ✅ — Account Activation Endpoint
 
 > `POST /users/activate` with Basic Auth + 4-digit code.
 
-- [ ] Create `core/security.py` — `HTTPBasic` dependency, credential verification with `secrets.compare_digest`
-- [ ] Create `api/schemas/users.py` — `ActivationRequest(code: str)` with 4-digit validation
-- [ ] Add activation logic to `UserService`:
-  - Verify Basic Auth (email + password via bcrypt)
-  - Validate code matches and not expired (1 minute TTL)
-  - Mark user as active
-  - Raise `InvalidActivationCodeError` or `ActivationCodeExpiredError`
-- [ ] Create `POST /users/activate` in router with `dependencies=[Depends(http_basic)]`
-- [ ] Add tests: successful activation, expired code, wrong code, wrong credentials
-- [ ] Update FEATURES.md — mark account activation as done
-- [ ] Update README — add activation endpoint documentation
+- [x] Create `core/security.py` — `HTTPBasic` dependency, credential verification with `bcrypt.checkpw`
+  - Dummy hash (`_DUMMY_HASH`) to prevent timing-based user enumeration
+  - 401 response with `WWW-Authenticate: Basic` header
+- [x] Create `api/schemas/users.py` — `ActivationRequest(code: str)` with 4-digit regex validation
+- [x] Create `ActivationResponse` schema for typed `response_model`
+- [x] Add `get_expired_code` port + repo method to distinguish expired from invalid codes
+- [x] Add activation logic to `UserService.activate_user`:
+  - Check user not already active
+  - Validate code matches and not expired (SQL `expires_at > now()`)
+  - If code not found, check if expired → `ActivationCodeExpiredError` vs `InvalidActivationCodeError`
+  - Mark code as used, activate user
+- [x] Create `POST /users/activate` in router with `get_authenticated_user` dependency
+- [x] Single DB connection per request (FastAPI `use_cache=True` deduplication verified)
+- [x] Add tests: successful activation (200), expired code (400), wrong code (400), invalid format (422), no credentials (401 + `WWW-Authenticate` header)
+- [x] Update FEATURES.md — mark account activation as done
+- [x] Update README — add activation endpoint documentation
+- [x] Fix async-safe correlation ID logging: `contextvars.ContextVar` + single `CorrelationIdFilter` at startup (replaces per-request addFilter/removeFilter on root logger)
 
 ---
 
