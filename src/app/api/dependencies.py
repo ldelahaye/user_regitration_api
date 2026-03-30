@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import Depends, Request
 
 from app.domain.ports import ActivationCodeRepository, UserRepository
+from app.domain.services import UserService
 from app.infrastructure.database.repositories import PgActivationCodeRepository, PgUserRepository
 
 
@@ -30,3 +31,9 @@ async def get_user_repository(conn: DbConnection) -> UserRepository:
 
 async def get_activation_code_repository(conn: DbConnection) -> ActivationCodeRepository:
     return PgActivationCodeRepository(conn)
+
+
+async def get_user_service(
+    user_repository: Annotated[UserRepository, Depends(get_user_repository)],
+) -> UserService:
+    return UserService(user_repository)
