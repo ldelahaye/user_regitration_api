@@ -1,3 +1,62 @@
+## FastAPI Best Practices
+
+These practices MUST be followed in all code written for this project. They are derived from the official FastAPI documentation.
+
+### Type Hints & Pydantic
+- Use `Annotated` types for all dependency injection: `Annotated[Type, Depends(dep)]`
+- Create reusable type aliases for common dependencies: `CurrentUser = Annotated[User, Depends(get_current_user)]`
+- Separate request/response schemas (`api/schemas/`) from domain models (`domain/models.py`)
+- Use Pydantic `BaseModel` for all API schemas with strict validation (`Field(min_length=, max_length=, etc.)`)
+- Use `EmailStr` for email validation, `SecretStr` for passwords in schemas
+- Set `response_model` and `status_code` on all path operations
+
+### Dependency Injection
+- Use `Depends()` for all cross-cutting concerns: DB connections, auth, services
+- Dependencies can be async or sync — mix freely
+- Use `yield` dependencies for resource lifecycle (DB pool acquire/release)
+- Use decorator-level `dependencies=[Depends(...)]` for validation-only deps (no return needed)
+- Use global `app = FastAPI(dependencies=[...])` for app-wide deps
+- Override dependencies in tests with `app.dependency_overrides[dep] = mock_dep`
+
+### Routers & Project Structure
+- Use `APIRouter` per feature domain with `prefix=` and `tags=[]`
+- Include routers in `main.py` via `app.include_router(router)`
+- Place shared dependencies in `api/dependencies.py`
+- Use relative imports within `app` package
+
+### Error Handling
+- `raise HTTPException(status_code=, detail=)` — never return errors
+- Create custom domain exceptions in `core/exceptions.py` (e.g. `UserAlreadyExistsError`, `ActivationCodeExpiredError`, `InvalidActivationCodeError`)
+- Register custom exception handlers with `@app.exception_handler(ExcClass)` to convert domain exceptions into structured HTTP responses
+- Override `RequestValidationError` handler for consistent error format across all endpoints
+- Always register handlers for `starlette.exceptions.HTTPException` (not just FastAPI's)
+- Use structured error response format: `{"detail": "message", "error_code": "DOMAIN_ERROR_CODE"}`
+
+### Security
+- Use `HTTPBasic` from `fastapi.security` for Basic Auth (as required by spec for account activation)
+- Never store plaintext passwords — use bcrypt hashing
+- Use `secrets.compare_digest()` for timing-safe string comparison
+- Return `WWW-Authenticate` header with 401 responses
+
+### Lifespan & Resources
+- Use `@asynccontextmanager` lifespan (not deprecated `on_event`)
+- Initialize DB pool, email client in startup; close in shutdown
+- Store shared resources in `app.state`
+
+### Logging
+- Use Python `logging` module — never `print()` (enforced by ruff T20)
+- Use `logging.getLogger(__name__)` in each module
+- Log at appropriate levels: ERROR for failures, WARNING for degraded, INFO for events
+- Implement request logging middleware with correlation IDs
+
+### Testing
+- Use `httpx.AsyncClient` with `ASGITransport` for async tests
+- Use `pytest-asyncio` with `asyncio_mode = "auto"`
+- Override dependencies for isolation — never hit real external services in tests
+- One test = one unique behavior
+
+---
+
 ## Project Context
 
 Before starting any task, read these files for full project context:

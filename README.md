@@ -12,12 +12,15 @@ User registration API with email verification, built with FastAPI and PostgreSQL
 
 ## Architecture
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams and layer descriptions.
+
 This project follows **hexagonal architecture** (ports & adapters):
 
 ```
 src/app/
 ├── api/              # Inbound adapters (HTTP routes, request/response models)
-├── core/             # Configuration, shared exceptions
+│   └── middlewares/  # Request logging, correlation IDs
+├── core/             # Configuration, logging, shared exceptions
 ├── domain/           # Business logic, domain models, port interfaces
 ├── infrastructure/   # Outbound adapters (database, email service)
 └── main.py           # Application entry point, lifespan events
@@ -27,6 +30,8 @@ src/app/
 - **API layer** handles HTTP concerns and delegates to domain services
 - **Infrastructure layer** implements ports (database repositories, email clients)
 - **Dependencies flow inward**: API -> Domain <- Infrastructure
+
+See [FEATURES.md](FEATURES.md) for the full feature inventory and status.
 
 ## Prerequisites
 
