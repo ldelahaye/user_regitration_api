@@ -11,6 +11,8 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.infrastructure.database.client import close_pool, init_pool
 from app.infrastructure.database.migrations import run_migrations
+from app.infrastructure.email.client import create_email_service
+from app.infrastructure.email.templates import load_templates
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +26,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_size=settings.database_max_pool_size,
     )
     app.state.db_pool = pool
+    app.state.email_service = create_email_service(settings)
+    await app.state.email_service.check_connectivity()
+    load_templates()
     await run_migrations(pool)
     logger.info("Application startup complete")
     yield
+    await app.state.email_service.close()
     await close_pool(app.state.db_pool)
     logger.info("Application shutdown complete")
 

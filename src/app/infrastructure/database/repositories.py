@@ -13,26 +13,27 @@ class PgUserRepository(UserRepository):
     def __init__(self, conn: asyncpg.Connection) -> None:
         self._conn = conn
 
-    async def create(self, email: str, password_hash: str) -> User:
+    async def create(self, email: str, password_hash: str, lang: str) -> User:
         row = await self._conn.fetchrow(
-            "INSERT INTO users (email, password_hash) "
-            "VALUES ($1, $2) "
-            "RETURNING id, email, password_hash, is_active, created_at",
+            "INSERT INTO users (email, password_hash, lang) "
+            "VALUES ($1, $2, $3) "
+            "RETURNING id, email, password_hash, is_active, lang, created_at",
             email,
             password_hash,
+            lang,
         )
         return _row_to_user(row)
 
     async def get_by_email(self, email: str) -> User | None:
         row = await self._conn.fetchrow(
-            "SELECT id, email, password_hash, is_active, created_at FROM users WHERE email = $1",
+            "SELECT id, email, password_hash, is_active, lang, created_at FROM users WHERE email = $1",
             email,
         )
         return _row_to_user(row) if row else None
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         row = await self._conn.fetchrow(
-            "SELECT id, email, password_hash, is_active, created_at FROM users WHERE id = $1",
+            "SELECT id, email, password_hash, is_active, lang, created_at FROM users WHERE id = $1",
             user_id,
         )
         return _row_to_user(row) if row else None
@@ -59,7 +60,17 @@ class PgActivationCodeRepository(ActivationCodeRepository):
     async def get_active_code(self, user_id: UUID, code: str) -> ActivationCode | None:
         row = await self._conn.fetchrow(
             "SELECT id, user_id, code, expires_at, used_at FROM activation_codes "
-            "WHERE user_id = $1 AND code = $2 AND used_at IS NULL "
+            "WHERE user_id = $1 AND code = $2 AND used_at IS NULL AND expires_at > now() "
+            "ORDER BY expires_at DESC LIMIT 1",
+            user_id,
+            code,
+        )
+        return _row_to_activation_code(row) if row else None
+
+    async def get_expired_code(self, user_id: UUID, code: str) -> ActivationCode | None:
+        row = await self._conn.fetchrow(
+            "SELECT id, user_id, code, expires_at, used_at FROM activation_codes "
+            "WHERE user_id = $1 AND code = $2 AND used_at IS NULL AND expires_at <= now() "
             "ORDER BY expires_at DESC LIMIT 1",
             user_id,
             code,
@@ -82,6 +93,7 @@ def _row_to_user(row: asyncpg.Record | None) -> User:
         email=row["email"],
         password_hash=row["password_hash"],
         is_active=row["is_active"],
+        lang=row["lang"],
         created_at=row["created_at"],
     )
 

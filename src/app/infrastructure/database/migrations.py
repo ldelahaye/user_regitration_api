@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     email      VARCHAR(320) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     is_active  BOOLEAN NOT NULL DEFAULT FALSE,
+    lang       VARCHAR(5) NOT NULL DEFAULT 'fr',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -1,0 +1,13 @@
+subject: Tu código de activación
+---
+Hola,
+
+Introduce este código para activar tu cuenta:
+
+{code}
+
+Este código es válido durante {validity_minutes} minutos y solo puede utilizarse una vez. Al introducir este código, también confirmarás la dirección de correo electrónico asociada a tu cuenta.
+
+Si no has intentado iniciar sesión, puedes ignorar este correo.
+
+Atentamente,

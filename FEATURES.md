@@ -9,7 +9,7 @@ Feature inventory for the User Registration API.
 | Custom exception handlers | Done | Core | `core/exceptions.py` |
 | PostgreSQL database layer | Done | Infrastructure | `infrastructure/database/` |
 | User registration (`POST /users`) | Done | API + Domain | `api/routers/users.py`, `domain/services.py` |
-| Email verification (4-digit code) | Pending | Infrastructure | |
-| Account activation (Basic Auth) | Pending | API + Domain | |
+| Email verification (4-digit code) | Done | Infrastructure | `infrastructure/email/client.py`, `domain/services.py` |
+| Account activation (Basic Auth) | Done | API + Domain | `api/routers/users.py`, `core/security.py` |
 | Integration tests | Pending | Tests | |
 | Architecture documentation | Done | Docs | `ARCHITECTURE.md` |
