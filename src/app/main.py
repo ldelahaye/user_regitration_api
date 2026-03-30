@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.middlewares.logging import LoggingMiddleware
+from app.api.routers.users import router as users_router
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
@@ -37,6 +38,7 @@ app = FastAPI(
 
 app.add_middleware(LoggingMiddleware)
 register_exception_handlers(app)
+app.include_router(users_router)
 
 
 @app.get("/health")

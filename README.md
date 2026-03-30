@@ -87,6 +87,39 @@ uv run ruff format --check src/ tests/
 uv run mypy
 ```
 
+## API Endpoints
+
+| Method | Path | Description | Status Code |
+|--------|------|-------------|-------------|
+| `GET` | `/health` | Health check | 200 |
+| `POST` | `/users` | Register a new user | 201 |
+
+### `POST /users`
+
+Register a new user with email and password.
+
+**Request body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "is_active": false,
+  "created_at": "2026-03-30T12:00:00Z"
+}
+```
+
+**Errors:**
+- `409` — Email already registered (`USER_ALREADY_EXISTS`)
+- `422` — Validation error (invalid email, password too short)
+
 ## Project Structure
 
 ```
