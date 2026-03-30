@@ -83,6 +83,31 @@ sequenceDiagram
     M-->>C: Response + X-Correlation-ID
 ```
 
+## Database Schema
+
+```sql
+users
+├── id            UUID (PK, auto-generated)
+├── email         VARCHAR(320) UNIQUE NOT NULL
+├── password_hash TEXT NOT NULL
+├── is_active     BOOLEAN DEFAULT FALSE
+└── created_at    TIMESTAMPTZ DEFAULT now()
+
+activation_codes
+├── id         UUID (PK, auto-generated)
+├── user_id    UUID (FK → users.id, CASCADE)
+├── code       CHAR(4) NOT NULL
+├── expires_at TIMESTAMPTZ NOT NULL
+└── used_at    TIMESTAMPTZ (NULL until used)
+```
+
+## Database Connection Lifecycle
+
+1. **Startup**: `init_pool()` creates asyncpg connection pool, verifies connectivity with `SELECT 1`
+2. **Migrations**: `run_migrations()` applies schema (idempotent `CREATE TABLE IF NOT EXISTS`)
+3. **Request**: `get_connection()` dependency acquires a connection from the pool, releases after response
+4. **Shutdown**: `close_pool()` closes all pool connections
+
 ## External Services
 
 | Service | Role | Connection |
