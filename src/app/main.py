@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.api.middlewares.logging import LoggingMiddleware
 from app.core.config import settings
+from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ app = FastAPI(
 )
 
 app.add_middleware(LoggingMiddleware)
+register_exception_handlers(app)
 
 
 @app.get("/health")
