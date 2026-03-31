@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.dependencies import get_authenticated_user, get_user_service
-from app.core.exceptions import (
+from app.domain.exceptions import (
     ActivationCodeExpiredError,
     ActivationCodeLockedError,
     InvalidActivationCodeError,
@@ -91,7 +91,7 @@ async def test_activate_user_wrong_code_returns_400(
     assert body["error_code"] == "INVALID_ACTIVATION_CODE"
 
 
-async def test_activate_user_invalid_code_format_returns_422(
+async def test_activate_user_invalid_code_format_returns_400(
     client: AsyncClient, mock_user_service: AsyncMock, mock_authenticated_user: None
 ) -> None:
     response = await client.post(
@@ -100,9 +100,9 @@ async def test_activate_user_invalid_code_format_returns_422(
         headers=_basic_auth_header("activate@example.com", "password123"),
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 400
     body = response.json()
-    assert body["error_code"] == "VALIDATION_ERROR"
+    assert body["error_code"] == "INVALID_ACTIVATION_CODE"
 
 
 async def test_activate_user_already_active_returns_409(

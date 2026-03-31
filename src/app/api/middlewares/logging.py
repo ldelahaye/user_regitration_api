@@ -10,7 +10,7 @@ import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 
 from app.core.logging import _UUID_RE, CORRELATION_ID_HEADER, correlation_id_var
 
@@ -32,20 +32,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         start_time = time.monotonic()
         try:
             response = await call_next(request)
-        except Exception:
-            duration_ms = (time.monotonic() - start_time) * 1000
-            logger.error(
-                "%s %s 500 %.2fms",
-                request.method,
-                request.url.path,
-                duration_ms,
-            )
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "Internal server error", "error_code": "INTERNAL_ERROR"},
-                headers={CORRELATION_ID_HEADER: cid},
-            )
-        else:
             duration_ms = (time.monotonic() - start_time) * 1000
             response.headers[CORRELATION_ID_HEADER] = cid
             logger.info(

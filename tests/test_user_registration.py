@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.dependencies import get_user_service
-from app.core.exceptions import UserAlreadyExistsError
+from app.domain.exceptions import UserAlreadyExistsError
 from app.domain.models import User
 from app.domain.services import UserService
 from app.main import app
@@ -33,7 +33,7 @@ async def mock_user_service() -> AsyncIterator[AsyncMock]:
 
 async def test_register_user_returns_201(client: AsyncClient, mock_user_service: AsyncMock) -> None:
     response = await client.post(
-        "/users", json={"email": "test@example.com", "password": "securepassword123", "lang": "fr"}
+        "/users", json={"email": "test@example.com", "password": "Securepassword123!", "lang": "fr"}
     )
 
     assert response.status_code == 201
@@ -43,14 +43,14 @@ async def test_register_user_returns_201(client: AsyncClient, mock_user_service:
     assert body["lang"] == "fr"
     assert "id" in body
     assert "created_at" in body
-    mock_user_service.register.assert_called_once_with("test@example.com", "securepassword123", "fr")
+    mock_user_service.register.assert_called_once_with("test@example.com", "Securepassword123!", "fr")
 
 
 async def test_register_user_duplicate_email_returns_409(client: AsyncClient, mock_user_service: AsyncMock) -> None:
     mock_user_service.register.side_effect = UserAlreadyExistsError
 
     response = await client.post(
-        "/users", json={"email": "taken@example.com", "password": "securepassword123", "lang": "en"}
+        "/users", json={"email": "taken@example.com", "password": "Securepassword123!", "lang": "en"}
     )
 
     assert response.status_code == 409
@@ -60,7 +60,7 @@ async def test_register_user_duplicate_email_returns_409(client: AsyncClient, mo
 
 async def test_register_user_invalid_email_returns_422(client: AsyncClient, mock_user_service: AsyncMock) -> None:
     response = await client.post(
-        "/users", json={"email": "not-an-email", "password": "securepassword123", "lang": "fr"}
+        "/users", json={"email": "not-an-email", "password": "Securepassword123!", "lang": "fr"}
     )
 
     assert response.status_code == 422
@@ -76,6 +76,17 @@ async def test_register_user_short_password_returns_422(client: AsyncClient, moc
     assert body["error_code"] == "VALIDATION_ERROR"
 
 
+async def test_register_user_weak_password_returns_422(client: AsyncClient, mock_user_service: AsyncMock) -> None:
+    response = await client.post(
+        "/users", json={"email": "test@example.com", "password": "allasterisks**", "lang": "fr"}
+    )
+
+    assert response.status_code == 422
+    mock_user_service.register.assert_not_called()
+    body = response.json()
+    assert body["error_code"] == "VALIDATION_ERROR"
+
+
 async def test_register_user_missing_fields_returns_422(client: AsyncClient, mock_user_service: AsyncMock) -> None:
     response = await client.post("/users", json={})
 
@@ -86,7 +97,7 @@ async def test_register_user_missing_fields_returns_422(client: AsyncClient, moc
 
 async def test_register_user_invalid_lang_returns_422(client: AsyncClient, mock_user_service: AsyncMock) -> None:
     response = await client.post(
-        "/users", json={"email": "test@example.com", "password": "securepassword123", "lang": "ja"}
+        "/users", json={"email": "test@example.com", "password": "Securepassword123!", "lang": "ja"}
     )
 
     assert response.status_code == 422

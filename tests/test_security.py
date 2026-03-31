@@ -7,7 +7,7 @@ from uuid import uuid4
 import bcrypt
 import pytest
 
-from app.core.exceptions import UserNotFoundError
+from app.domain.exceptions import UserNotFoundError
 from app.domain.models import AuthenticatedUser, User
 from app.domain.services import UserService
 from app.infrastructure.database.repositories import _hash_code

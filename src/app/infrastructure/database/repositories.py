@@ -7,9 +7,8 @@ from uuid import UUID
 
 import asyncpg
 
-from app.core.exceptions import DuplicateEntryError
 from app.domain.models import ActivationCode, User
-from app.domain.ports import ActivationCodeRepository, UserRepository
+from app.domain.ports import ActivationCodeRepository, DuplicateEntryError, UserRepository
 
 
 def _hash_code(secret: str, user_id: UUID, code: str) -> str:
@@ -39,20 +38,13 @@ class PgUserRepository(UserRepository):
                 lang,
             )
         except asyncpg.UniqueViolationError:
-            raise DuplicateEntryError from None
+            raise DuplicateEntryError("email") from None
         return _row_to_user(row)
 
     async def get_by_email(self, email: str) -> User | None:
         row = await self._conn.fetchrow(
             "SELECT id, email, password_hash, is_active, lang, created_at FROM users WHERE email = $1",
             email,
-        )
-        return _row_to_user(row) if row else None
-
-    async def get_by_id(self, user_id: UUID) -> User | None:
-        row = await self._conn.fetchrow(
-            "SELECT id, email, password_hash, is_active, lang, created_at FROM users WHERE id = $1",
-            user_id,
         )
         return _row_to_user(row) if row else None
 

@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.middlewares.logging import LoggingMiddleware
 from app.api.routers.users import router as users_router
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning("SECURITY: email_mock is enabled — emails will NOT be sent")
 
     if settings.hmac_secret.get_secret_value() == _INSECURE_HMAC_DEFAULT and not settings.debug:
-        logger.error("SECURITY: APP_HMAC_SECRET is using the default value — set it before deploying")
+        raise RuntimeError("APP_HMAC_SECRET is set to the default value — set a strong secret before deploying")
 
     async with _startup_phase("database pool initialization"):
         pool = await init_pool(
@@ -72,6 +73,14 @@ app = FastAPI(
 )
 
 app.add_middleware(LoggingMiddleware)
+if settings.cors_allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type", "X-Correlation-ID"],
+    )
 register_exception_handlers(app)
 app.include_router(users_router)
 

@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from httpx import AsyncClient
 
 from app.api.dependencies import get_active_user, get_authenticated_user
-from app.core.exceptions import InactiveUserError
+from app.domain.exceptions import InactiveUserError
 from app.domain.models import AuthenticatedUser
 from app.main import app
 from tests.helpers import basic_auth_header as _basic_auth_header
@@ -79,9 +79,7 @@ async def test_get_me_returns_401_without_credentials(client: AsyncClient) -> No
     assert response.status_code == 401
 
 
-async def test_get_me_returns_401_with_invalid_credentials(
-    client: AsyncClient, _invalid_credentials: None
-) -> None:
+async def test_get_me_returns_401_with_invalid_credentials(client: AsyncClient, _invalid_credentials: None) -> None:
     response = await client.get("/users/me", headers=_basic_auth_header("wrong@example.com", "wrong"))
 
     assert response.status_code == 401
@@ -95,4 +93,5 @@ async def test_get_me_returns_403_when_user_inactive(client: AsyncClient, _inact
 
     assert response.status_code == 403
     body = response.json()
+    assert body["detail"] == "Account is not activated"
     assert body["error_code"] == "INACTIVE_USER"

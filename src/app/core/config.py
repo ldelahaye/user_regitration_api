@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     app_name: str = "User Registration API"
     debug: bool = False
 
+    cors_allowed_origins: list[str] = []
+
     database_url: SecretStr = SecretStr("postgresql://postgres:postgres@localhost:5432/registration")
     database_min_pool_size: int = 2
     database_max_pool_size: int = 10

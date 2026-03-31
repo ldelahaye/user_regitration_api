@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal, get_args
 from uuid import UUID
 
-SUPPORTED_LANGUAGES: tuple[str, ...] = ("fr", "en", "es", "it", "de")
+SupportedLang = Literal["fr", "en", "es", "it", "de"]
+SUPPORTED_LANGUAGES: tuple[str, ...] = get_args(SupportedLang)
 
 
 @dataclass(frozen=True)

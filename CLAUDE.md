@@ -8,12 +8,16 @@ These practices MUST be followed in all code written for this project. They are 
 - Separate request/response schemas (`api/schemas/`) from domain models (`domain/models.py`)
 - Use Pydantic `BaseModel` for all API schemas with strict validation (`Field(min_length=, max_length=, etc.)`)
 - Use `EmailStr` for email validation, `SecretStr` for passwords in schemas
-- Set `response_model` and `status_code` on all path operations
+- Set `response_model` and `status_code` on all path operations (use `status.HTTP_xxx` constants, see Status Codes section)
+- For partial updates (PATCH): use `model_dump(exclude_unset=True)` to get only explicitly set fields, then `model_copy(update=)` to apply changes. All fields must be optional in the update schema
 
 ### Dependency Injection
 - Use `Depends()` for all cross-cutting concerns: DB connections, auth, services
+- Use `Security()` (not `Depends()`) for auth dependencies requiring OAuth2 scopes — scopes appear in OpenAPI spec
 - Dependencies can be async or sync — mix freely
 - Use `yield` dependencies for resource lifecycle (DB pool acquire/release)
+- `Depends(use_cache=True)` (default): reuses result within same request. Set `use_cache=False` to force a new call
+- `Depends(scope="request")` for yield deps that must stay open until response is sent (e.g. DB transactions); `scope="function"` (default) closes before response
 - Use decorator-level `dependencies=[Depends(...)]` for validation-only deps (no return needed)
 - Use global `app = FastAPI(dependencies=[...])` for app-wide deps
 - Override dependencies in tests with `app.dependency_overrides[dep] = mock_dep`
@@ -34,9 +38,29 @@ These practices MUST be followed in all code written for this project. They are 
 
 ### Security
 - Use `HTTPBasic` from `fastapi.security` for Basic Auth (as required by spec for account activation)
+- Use `HTTPBasic(auto_error=False)` for optional authentication (endpoints accessible both anonymously and authenticated)
+- Use `HTTPBasic.make_authenticate_headers()` to generate `WWW-Authenticate` header and `make_not_authenticated_error()` for ready-made 401 exceptions
 - Never store plaintext passwords — use bcrypt hashing
 - Use `secrets.compare_digest()` for timing-safe string comparison
 - Return `WWW-Authenticate` header with 401 responses
+
+### Status Codes
+- Always use named constants from `from fastapi import status` — never raw integers
+- Example: `status_code=status.HTTP_201_CREATED`, `status_code=status.HTTP_204_NO_CONTENT`
+- Provides IDE autocompletion and better readability
+
+### OpenAPI / Swagger Documentation
+- Use `summary` and `description` on path operations for Swagger UI display
+- Use `response_description` for documenting the response in the OpenAPI spec
+- Use `tags=[]` on routers and path operations to organize endpoints in the Swagger UI
+- Add examples to Pydantic schemas via `model_config = {"json_schema_extra": {"examples": [...]}}`
+- Add per-field examples via `Field(examples=["value"])`
+- For rich, named examples on request bodies, use `Body(openapi_examples={...})` with `summary`, `description`, and `value` keys
+- `openapi_examples` works on `Path()`, `Query()`, `Header()`, `Cookie()`, `Body()`, `Form()`, `File()`
+
+### FastAPI App Configuration
+- Use `FastAPI(strict_content_type=True)` (default) — enforces Content-Type validation to prevent CSRF
+- Use `FastAPI(default_response_class=ORJSONResponse)` to optimize JSON serialization globally when using `orjson`
 
 ### Lifespan & Resources
 - Use `@asynccontextmanager` lifespan (not deprecated `on_event`)

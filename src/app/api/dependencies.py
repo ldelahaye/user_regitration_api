@@ -1,19 +1,19 @@
 """Shared FastAPI dependencies — database connection lifecycle and authentication."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import asyncpg
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from app.container import create_activation_code_repository, create_user_repository
 from app.core.config import settings
-from app.core.exceptions import InactiveUserError, UserNotFoundError
+from app.domain.exceptions import InactiveUserError, UserNotFoundError
 from app.domain.models import AuthenticatedUser
 from app.domain.ports import ActivationCodeRepository, EmailService, UserRepository
 from app.domain.services import PasswordPolicy, UserService, UserServiceConfig
-from app.infrastructure.database.repositories import PgActivationCodeRepository, PgUserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def get_email_service(request: Request) -> EmailService:
     return service
 
 
-async def get_connection(pool: Annotated[asyncpg.Pool, Depends(get_pool)]) -> AsyncIterator[asyncpg.Connection]:
+async def get_connection(pool: Annotated[asyncpg.Pool, Depends(get_pool)]) -> AsyncGenerator[asyncpg.Connection]:
     """Acquire a connection with transaction — commit on success, rollback on error."""
     async with pool.acquire() as conn:
         transaction = conn.transaction()
@@ -37,21 +37,24 @@ async def get_connection(pool: Annotated[asyncpg.Pool, Depends(get_pool)]) -> As
         try:
             yield conn
         except Exception:
-            await transaction.rollback()
+            try:
+                await transaction.rollback()
+            except Exception:
+                logger.exception("Failed to rollback transaction")
             raise
         else:
             await transaction.commit()
 
 
-DbConnection = Annotated[asyncpg.Connection, Depends(get_connection)]
+DbConnection = Annotated[asyncpg.Connection, Depends(get_connection, scope="request")]
 
 
 async def get_user_repository(conn: DbConnection) -> UserRepository:
-    return PgUserRepository(conn)
+    return create_user_repository(conn)
 
 
 async def get_activation_code_repository(conn: DbConnection) -> ActivationCodeRepository:
-    return PgActivationCodeRepository(conn, settings.hmac_secret.get_secret_value())
+    return create_activation_code_repository(conn)
 
 
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
@@ -96,7 +99,7 @@ async def get_authenticated_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
+            headers=_http_basic.make_authenticate_headers(),
         ) from None
 
 
