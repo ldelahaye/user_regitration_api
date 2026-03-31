@@ -5,7 +5,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from app.core.exceptions import NotificationError
+from app.domain.exceptions import NotificationError
 from app.infrastructure.email.client import HttpEmailService
 
 

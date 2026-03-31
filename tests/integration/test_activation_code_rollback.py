@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.dependencies import get_email_service
-from app.core.exceptions import NotificationError
+from app.domain.exceptions import NotificationError
 from app.domain.ports import EmailService
 from app.main import app
 
@@ -41,7 +41,7 @@ async def test_register_should_rollback_when_email_fails(
     """Registration returns 502 and rolls back when email send fails."""
     register_resp = await async_client.post(
         "/users",
-        json={"email": "resilient@example.com", "password": "securepassword123", "lang": "fr"},
+        json={"email": "resilient@example.com", "password": "Securepassword123!", "lang": "fr"},
     )
     assert register_resp.status_code == 502
     assert register_resp.json()["error_code"] == "NOTIFICATION_FAILED"
@@ -67,7 +67,7 @@ async def test_rerequest_returns_201_even_when_email_fails(
     app.dependency_overrides[get_email_service] = lambda: success_service
     register_resp = await async_client.post(
         "/users",
-        json={"email": "rollback@example.com", "password": "securepassword123", "lang": "fr"},
+        json={"email": "rollback@example.com", "password": "Securepassword123!", "lang": "fr"},
     )
     assert register_resp.status_code == 201
 
@@ -90,7 +90,7 @@ async def test_activation_code_committed_on_email_success(
 ) -> None:
     register_resp = await async_client.post(
         "/users",
-        json={"email": "commit@example.com", "password": "securepassword123", "lang": "fr"},
+        json={"email": "commit@example.com", "password": "Securepassword123!", "lang": "fr"},
     )
     assert register_resp.status_code == 201
 

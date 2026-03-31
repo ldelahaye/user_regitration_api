@@ -8,10 +8,9 @@ from dataclasses import dataclass, field
 
 import bcrypt
 
-from app.core.exceptions import (
+from app.domain.exceptions import (
     ActivationCodeExpiredError,
     ActivationCodeLockedError,
-    DuplicateEntryError,
     InvalidActivationCodeError,
     NotificationError,
     UserAlreadyActiveError,
@@ -20,7 +19,7 @@ from app.core.exceptions import (
     WeakPasswordError,
 )
 from app.domain.models import AuthenticatedUser, User
-from app.domain.ports import ActivationCodeRepository, EmailService, UserRepository
+from app.domain.ports import ActivationCodeRepository, DuplicateEntryError, EmailService, UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +110,12 @@ class UserService:
         if existing is not None:
             raise UserAlreadyExistsError
 
-        password_hash = await asyncio.to_thread(
-            lambda: bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=self._bcrypt_rounds)).decode()
-        )
+        password_hash = (
+            await asyncio.to_thread(bcrypt.hashpw, password.encode(), bcrypt.gensalt(rounds=self._bcrypt_rounds))
+        ).decode()
         try:
             user = await self._user_repository.create(email, password_hash, lang)
         except DuplicateEntryError:
-            # Race condition: two concurrent registrations passed the get_by_email check.
             raise UserAlreadyExistsError from None
 
         await self._issue_activation_code(user, raise_on_email_error=True)

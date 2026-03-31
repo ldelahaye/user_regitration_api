@@ -9,7 +9,7 @@ import logging
 import httpx
 
 from app.core.config import Settings
-from app.core.exceptions import NotificationError
+from app.domain.exceptions import NotificationError
 from app.domain.ports import EmailService
 from app.infrastructure.email.templates import render
 

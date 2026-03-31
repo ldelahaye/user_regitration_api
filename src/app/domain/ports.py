@@ -6,15 +6,20 @@ from uuid import UUID
 from app.domain.models import ActivationCode, User
 
 
+class DuplicateEntryError(Exception):
+    """Raised by a repository when a unique constraint is violated."""
+
+    def __init__(self, field: str = "unknown") -> None:
+        super().__init__(f"Duplicate entry for field: {field}")
+        self.field = field
+
+
 class UserRepository(ABC):
     @abstractmethod
     async def create(self, email: str, password_hash: str, lang: str) -> User: ...
 
     @abstractmethod
     async def get_by_email(self, email: str) -> User | None: ...
-
-    @abstractmethod
-    async def get_by_id(self, user_id: UUID) -> User | None: ...
 
     @abstractmethod
     async def activate(self, user_id: UUID) -> None: ...

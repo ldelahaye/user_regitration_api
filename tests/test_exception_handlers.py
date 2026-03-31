@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app.api.schemas.users import ActivationRequest
 from app.core.exception_handlers import register_exception_handlers
-from app.core.exceptions import (
+from app.domain.exceptions import (
     ActivationCodeExpiredError,
     ActivationCodeLockedError,
     InactiveUserError,
@@ -107,13 +107,14 @@ async def test_user_already_exists_returns_409(exception_client: AsyncClient) ->
     assert body["error_code"] == "USER_ALREADY_EXISTS"
 
 
-async def test_user_not_found_returns_404(exception_client: AsyncClient) -> None:
+async def test_user_not_found_returns_401(exception_client: AsyncClient) -> None:
     response = await exception_client.get("/_test_exceptions/user-not-found")
 
-    assert response.status_code == 404
+    assert response.status_code == 401
     body = response.json()
     assert body["detail"] == "User not found"
     assert body["error_code"] == "USER_NOT_FOUND"
+    assert response.headers["WWW-Authenticate"] == "Basic"
 
 
 async def test_invalid_activation_code_returns_400(exception_client: AsyncClient) -> None:
@@ -158,6 +159,7 @@ async def test_inactive_user_returns_403(exception_client: AsyncClient) -> None:
     body = response.json()
     assert body["detail"] == "Account is not activated"
     assert body["error_code"] == "INACTIVE_USER"
+    assert response.headers["WWW-Authenticate"] == "Basic"
 
 
 async def test_notification_error_returns_502(exception_client: AsyncClient) -> None:
@@ -172,7 +174,7 @@ async def test_notification_error_returns_502(exception_client: AsyncClient) -> 
 async def test_domain_error_with_custom_detail(exception_client: AsyncClient) -> None:
     response = await exception_client.get("/_test_exceptions/custom-detail")
 
-    assert response.status_code == 404
+    assert response.status_code == 401
     body = response.json()
     assert body["detail"] == "User with ID abc123 not found"
     assert body["error_code"] == "USER_NOT_FOUND"

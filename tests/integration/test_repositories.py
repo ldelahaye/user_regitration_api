@@ -39,16 +39,6 @@ async def test_get_by_email_not_found(db_conn: asyncpg.Connection) -> None:
     assert found is None
 
 
-async def test_get_by_id(db_conn: asyncpg.Connection) -> None:
-    repo = PgUserRepository(db_conn)
-    user = await repo.create("byid@example.com", "hashed_password", "fr")
-
-    found = await repo.get_by_id(user.id)
-
-    assert found is not None
-    assert found.id == user.id
-
-
 async def test_activate_user(db_conn: asyncpg.Connection) -> None:
     repo = PgUserRepository(db_conn)
     user = await repo.create("activate@example.com", "hashed_password", "fr")
@@ -56,7 +46,7 @@ async def test_activate_user(db_conn: asyncpg.Connection) -> None:
 
     await repo.activate(user.id)
 
-    activated = await repo.get_by_id(user.id)
+    activated = await repo.get_by_email("activate@example.com")
     assert activated is not None
     assert activated.is_active is True
 

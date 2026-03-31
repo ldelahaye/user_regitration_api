@@ -6,17 +6,18 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.exceptions import (
+from app.domain.exceptions import (
     ActivationCodeExpiredError,
     ActivationCodeLockedError,
-    DuplicateEntryError,
     InvalidActivationCodeError,
     NotificationError,
     UserAlreadyActiveError,
     UserAlreadyExistsError,
+    WeakPasswordError,
 )
 from app.domain.models import ActivationCode, AuthenticatedUser, User
-from app.domain.services import UserService
+from app.domain.ports import DuplicateEntryError
+from app.domain.services import PasswordPolicy, UserService, UserServiceConfig
 
 _USER = User(
     id=uuid4(),
@@ -95,7 +96,7 @@ async def test_register_should_raise_when_duplicate_entry_race_condition(
     service: UserService,
     user_repository: AsyncMock,
 ) -> None:
-    user_repository.create.side_effect = DuplicateEntryError
+    user_repository.create.side_effect = DuplicateEntryError("email")
 
     with pytest.raises(UserAlreadyExistsError):
         await service.register("test@example.com", "Securepassword123!", "fr")
@@ -109,6 +110,53 @@ async def test_register_should_raise_email_send_error_when_email_fails(
 
     with pytest.raises(NotificationError):
         await service.register("test@example.com", "Securepassword123!", "fr")
+
+
+# --- _validate_password() ---
+
+
+async def test_register_should_raise_when_password_too_short(service: UserService) -> None:
+    with pytest.raises(WeakPasswordError, match="at least 12 characters"):
+        await service.register("x@example.com", "Short1!aaaa", "fr")
+
+
+async def test_register_should_raise_when_password_too_long(
+    user_repository: AsyncMock,
+    activation_code_repository: AsyncMock,
+    email_service: AsyncMock,
+) -> None:
+    config = UserServiceConfig(password_policy=PasswordPolicy(max_length=20))
+    svc = UserService(user_repository, activation_code_repository, email_service, config=config)
+
+    with pytest.raises(WeakPasswordError, match="at most 20 characters"):
+        await svc.register("x@example.com", "A" * 21 + "a1!", "fr")
+
+
+async def test_register_should_raise_when_password_missing_lowercase(service: UserService) -> None:
+    with pytest.raises(WeakPasswordError, match="one lowercase letter"):
+        await service.register("x@example.com", "NOLOWERCASE123!", "fr")
+
+
+async def test_register_should_raise_when_password_missing_uppercase(service: UserService) -> None:
+    with pytest.raises(WeakPasswordError, match="one uppercase letter"):
+        await service.register("x@example.com", "nouppercase123!", "fr")
+
+
+async def test_register_should_raise_when_password_missing_digit(service: UserService) -> None:
+    with pytest.raises(WeakPasswordError, match="one digit"):
+        await service.register("x@example.com", "NoDigitHere!!!!", "fr")
+
+
+async def test_register_should_raise_when_password_missing_special(service: UserService) -> None:
+    with pytest.raises(WeakPasswordError, match="one special character"):
+        await service.register("x@example.com", "NoSpecial12345", "fr")
+
+
+async def test_register_should_report_all_violations_at_once(service: UserService) -> None:
+    with pytest.raises(
+        WeakPasswordError, match=r"at least 12 characters.*one uppercase letter.*one digit.*one special"
+    ):
+        await service.register("x@example.com", "short", "fr")
 
 
 # --- request_activation_code() ---
