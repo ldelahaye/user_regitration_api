@@ -1,55 +1,58 @@
-"""Tests for POST /users/{user_id}/activation-code — send activation code endpoint."""
+"""Tests for POST /users/activation-code — request activation code by email."""
 
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock
-from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
 from app.api.dependencies import get_user_service
-from app.core.exceptions import UserNotFoundError
-from app.domain.models import ActivationCode
 from app.domain.services import UserService
 from app.main import app
-
-_USER_ID = uuid4()
 
 
 @pytest.fixture
 async def mock_user_service() -> AsyncIterator[AsyncMock]:
     service = AsyncMock(spec=UserService)
-    service.send_activation_code.return_value = ActivationCode(
-        id=uuid4(),
-        user_id=_USER_ID,
-        code="1234",
-        expires_at=datetime.now(tz=UTC),
-        used_at=None,
-    )
     app.dependency_overrides[get_user_service] = lambda: service
     yield service
     app.dependency_overrides.pop(get_user_service, None)
 
 
-async def test_send_activation_code_returns_201(client: AsyncClient, mock_user_service: AsyncMock) -> None:
-    response = await client.post(f"/users/{_USER_ID}/activation-code")
+async def test_request_activation_code_returns_201(client: AsyncClient, mock_user_service: AsyncMock) -> None:
+    response = await client.post("/users/activation-code", json={"email": "test@example.com"})
 
     assert response.status_code == 201
     body = response.json()
-    assert body["user_id"] == str(_USER_ID)
-    assert "id" in body
-    assert "expires_at" in body
-    mock_user_service.send_activation_code.assert_called_once_with(_USER_ID)
+    assert "detail" in body
+    mock_user_service.request_activation_code.assert_called_once_with("test@example.com")
 
 
-async def test_send_activation_code_user_not_found_returns_404(
+async def test_request_activation_code_unknown_email_returns_201(
     client: AsyncClient, mock_user_service: AsyncMock
 ) -> None:
-    mock_user_service.send_activation_code.side_effect = UserNotFoundError
+    """OWASP: no user enumeration — unknown email gets same response."""
+    response = await client.post("/users/activation-code", json={"email": "unknown@example.com"})
 
-    response = await client.post(f"/users/{uuid4()}/activation-code")
+    assert response.status_code == 201
+    mock_user_service.request_activation_code.assert_called_once_with("unknown@example.com")
 
-    assert response.status_code == 404
+
+async def test_request_activation_code_invalid_email_returns_422(
+    client: AsyncClient, mock_user_service: AsyncMock
+) -> None:
+    response = await client.post("/users/activation-code", json={"email": "not-an-email"})
+
+    assert response.status_code == 422
     body = response.json()
-    assert body["error_code"] == "USER_NOT_FOUND"
+    assert body["error_code"] == "VALIDATION_ERROR"
+
+
+async def test_request_activation_code_missing_email_returns_422(
+    client: AsyncClient, mock_user_service: AsyncMock
+) -> None:
+    response = await client.post("/users/activation-code", json={})
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error_code"] == "VALIDATION_ERROR"

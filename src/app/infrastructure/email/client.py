@@ -9,7 +9,7 @@ import logging
 import httpx
 
 from app.core.config import Settings
-from app.core.exceptions import EmailSendError
+from app.core.exceptions import NotificationError
 from app.domain.ports import EmailService
 from app.infrastructure.email.templates import render
 
@@ -58,8 +58,9 @@ class HttpEmailService(EmailService):
             response = await self._client.post(self._api_url, json=payload, headers=headers)
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            logger.exception("Failed to send activation code to %s", email)
-            raise EmailSendError from exc
+            status_code = getattr(getattr(exc, "response", None), "status_code", "network error")
+            logger.exception("Failed to send activation code (status=%s)", status_code)
+            raise NotificationError from exc
         logger.info("Activation code sent to %s via email API (lang=%s)", email, lang)
 
     async def close(self) -> None:
@@ -74,8 +75,8 @@ class ConsoleEmailService(EmailService):
         logger.info("Console email service: connectivity check skipped (mock)")
 
     async def send_activation_code(self, email: str, code: str, validity_minutes: int, lang: str) -> None:
-        subject, body = render(code, validity_minutes, lang)
-        logger.info("[MOCK] Email to %s (lang=%s):\nSubject: %s\n%s", email, lang, subject, body)
+        render(code, validity_minutes, lang)  # validate template renders without error
+        logger.info("[MOCK] activation code sent → %s (lang=%s, ttl=%d min)", email, lang, validity_minutes)
 
     async def close(self) -> None:
         logger.info("Console email service closed")

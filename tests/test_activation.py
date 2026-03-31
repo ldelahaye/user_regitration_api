@@ -1,6 +1,5 @@
 """Tests for POST /users/activate — account activation with Basic Auth."""
 
-import base64
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -10,24 +9,24 @@ import pytest
 from httpx import AsyncClient
 
 from app.api.dependencies import get_authenticated_user, get_user_service
-from app.core.exceptions import ActivationCodeExpiredError, InvalidActivationCodeError
-from app.domain.models import User
+from app.core.exceptions import (
+    ActivationCodeExpiredError,
+    ActivationCodeLockedError,
+    InvalidActivationCodeError,
+    UserAlreadyActiveError,
+)
+from app.domain.models import AuthenticatedUser
 from app.domain.services import UserService
 from app.main import app
+from tests.helpers import basic_auth_header as _basic_auth_header
 
-_USER = User(
+_USER = AuthenticatedUser(
     id=uuid4(),
     email="activate@example.com",
-    password_hash="hashed",  # noqa: S106
     is_active=False,
     lang="fr",
     created_at=datetime.now(tz=UTC),
 )
-
-
-def _basic_auth_header(username: str, password: str) -> dict[str, str]:
-    credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
-    return {"Authorization": f"Basic {credentials}"}
 
 
 @pytest.fixture
@@ -104,6 +103,36 @@ async def test_activate_user_invalid_code_format_returns_422(
     assert response.status_code == 422
     body = response.json()
     assert body["error_code"] == "VALIDATION_ERROR"
+
+
+async def test_activate_user_already_active_returns_409(
+    client: AsyncClient, mock_user_service: AsyncMock, mock_authenticated_user: None
+) -> None:
+    mock_user_service.activate_user.side_effect = UserAlreadyActiveError
+
+    response = await client.post(
+        "/users/activate",
+        json={"code": "1234"},
+        headers=_basic_auth_header("activate@example.com", "password123"),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "USER_ALREADY_ACTIVE"
+
+
+async def test_activate_user_locked_returns_429(
+    client: AsyncClient, mock_user_service: AsyncMock, mock_authenticated_user: None
+) -> None:
+    mock_user_service.activate_user.side_effect = ActivationCodeLockedError
+
+    response = await client.post(
+        "/users/activate",
+        json={"code": "1234"},
+        headers=_basic_auth_header("activate@example.com", "password123"),
+    )
+
+    assert response.status_code == 429
+    assert response.json()["error_code"] == "ACTIVATION_CODE_LOCKED"
 
 
 async def test_activate_user_no_credentials_returns_401(client: AsyncClient, mock_user_service: AsyncMock) -> None:

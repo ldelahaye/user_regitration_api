@@ -1,6 +1,8 @@
 """FastAPI exception handler registration."""
 
 import logging
+from collections.abc import Sequence
+from typing import Any
 
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
@@ -19,6 +21,7 @@ from app.core.exceptions import (
     UserAlreadyActiveError,
     UserAlreadyExistsError,
     UserNotFoundError,
+    WeakPasswordError,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,8 +34,18 @@ _HTTP_STATUS: dict[type[DomainError], int] = {
     InvalidActivationCodeError: 400,
     ActivationCodeLockedError: 429,
     ActivationCodeExpiredError: 400,
+    WeakPasswordError: 422,
     NotificationError: 502,
 }
+
+
+def _is_activation_code_error(request: Request, errors: Sequence[Any]) -> bool:
+    """Return True when the validation error is a pattern mismatch on the activation code field."""
+    if not request.url.path.endswith("/users/activate"):
+        return False
+    return any(
+        err.get("type") == "string_pattern_mismatch" and tuple(err.get("loc", [])) == ("body", "code") for err in errors
+    )
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -65,8 +78,18 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_error_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         errors = exc.errors()
+
+        if _is_activation_code_error(request, errors):
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "detail": "The activation code is invalid",
+                    "error_code": "INVALID_ACTIVATION_CODE",
+                },
+            )
+
         first_error = errors[0] if errors else {}
         field = " → ".join(str(loc) for loc in first_error.get("loc", []))
         message = first_error.get("msg", "Validation error")

@@ -1,19 +1,22 @@
 """Pydantic schemas for user endpoints — request validation and response serialization."""
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 
-from app.domain.models import SUPPORTED_LANGUAGES
+from app.domain.models import AuthenticatedUser, User
 
-_LANG_PATTERN = f"^({'|'.join(SUPPORTED_LANGUAGES)})$"
+SupportedLang = Literal["fr", "en", "es", "it", "de"]
 
 
 class UserRegisterRequest(BaseModel):
     email: EmailStr
-    password: SecretStr = Field(min_length=8, max_length=128)
-    lang: str = Field(pattern=_LANG_PATTERN)
+    password: SecretStr = Field(min_length=12, max_length=128)
+    lang: SupportedLang
 
 
 class UserResponse(BaseModel):
@@ -23,11 +26,17 @@ class UserResponse(BaseModel):
     lang: str
     created_at: datetime
 
+    @classmethod
+    def from_domain(cls, user: User | AuthenticatedUser) -> UserResponse:
+        return cls.model_validate(user, from_attributes=True)
 
-class ActivationCodeResponse(BaseModel):
-    id: UUID
-    user_id: UUID
-    expires_at: datetime
+
+class ActivationCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class ActivationCodeMessageResponse(BaseModel):
+    detail: str
 
 
 class ActivationRequest(BaseModel):

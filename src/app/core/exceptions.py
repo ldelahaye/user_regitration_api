@@ -46,6 +46,11 @@ class UserAlreadyActiveError(DomainError):
     _default_detail: ClassVar[str] = "Account is already active"
 
 
+class WeakPasswordError(DomainError):
+    error_code: ClassVar[str] = "WEAK_PASSWORD"
+    _default_detail: ClassVar[str] = "Password does not meet security requirements"
+
+
 # --- Activation ---
 
 
