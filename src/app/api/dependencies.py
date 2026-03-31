@@ -1,18 +1,21 @@
-"""Shared FastAPI dependencies — database connection lifecycle."""
+"""Shared FastAPI dependencies — database connection lifecycle and authentication."""
 
+import logging
 from collections.abc import AsyncIterator
 from typing import Annotated
 
 import asyncpg
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import settings
-from app.core.security import verify_credentials
-from app.domain.models import User
-from app.domain.ports import EmailService
-from app.domain.services import UserService
+from app.core.exceptions import InactiveUserError, UserNotFoundError
+from app.domain.models import AuthenticatedUser
+from app.domain.ports import ActivationCodeRepository, EmailService, UserRepository
+from app.domain.services import PasswordPolicy, UserService, UserServiceConfig
 from app.infrastructure.database.repositories import PgActivationCodeRepository, PgUserRepository
+
+logger = logging.getLogger(__name__)
 
 
 def get_pool(request: Request) -> asyncpg.Pool:
@@ -42,25 +45,63 @@ async def get_connection(pool: Annotated[asyncpg.Pool, Depends(get_pool)]) -> As
 
 DbConnection = Annotated[asyncpg.Connection, Depends(get_connection)]
 
+
+async def get_user_repository(conn: DbConnection) -> UserRepository:
+    return PgUserRepository(conn)
+
+
+async def get_activation_code_repository(conn: DbConnection) -> ActivationCodeRepository:
+    return PgActivationCodeRepository(conn, settings.hmac_secret.get_secret_value())
+
+
+UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
+ActivationCodeRepositoryDep = Annotated[ActivationCodeRepository, Depends(get_activation_code_repository)]
+
 _http_basic = HTTPBasic()
+
+_service_config = UserServiceConfig(
+    activation_code_ttl_minutes=settings.activation_code_ttl_minutes,
+    activation_max_attempts=settings.activation_max_attempts,
+    bcrypt_rounds=settings.bcrypt_rounds,
+    password_policy=PasswordPolicy(
+        min_length=settings.password_min_length,
+        max_length=settings.password_max_length,
+        require_uppercase=settings.password_require_uppercase,
+        require_lowercase=settings.password_require_lowercase,
+        require_digit=settings.password_require_digit,
+        require_special=settings.password_require_special,
+    ),
+)
+
+
+async def get_user_service(
+    user_repository: UserRepositoryDep,
+    activation_code_repository: ActivationCodeRepositoryDep,
+    email_service: Annotated[EmailService, Depends(get_email_service)],
+) -> UserService:
+    return UserService(user_repository, activation_code_repository, email_service, config=_service_config)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 async def get_authenticated_user(
     credentials: Annotated[HTTPBasicCredentials, Depends(_http_basic)],
-    conn: DbConnection,
-) -> User:
+    user_service: UserServiceDep,
+) -> AuthenticatedUser:
     """Verify Basic Auth credentials and return the authenticated user."""
-    user_repository = PgUserRepository(conn)
-    return await verify_credentials(credentials, user_repository)
+    try:
+        return await user_service.authenticate(credentials.username, credentials.password)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        ) from None
 
 
-async def get_user_service(
-    conn: DbConnection,
-    email_service: Annotated[EmailService, Depends(get_email_service)],
-) -> UserService:
-    return UserService(
-        PgUserRepository(conn),
-        PgActivationCodeRepository(conn),
-        email_service,
-        activation_code_ttl_minutes=settings.activation_code_ttl_minutes,
-    )
+async def get_active_user(user: Annotated[AuthenticatedUser, Depends(get_authenticated_user)]) -> AuthenticatedUser:
+    """Verify that the authenticated user has an active account."""
+    if not user.is_active:
+        raise InactiveUserError
+    return user

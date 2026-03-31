@@ -9,7 +9,11 @@ Feature inventory for the User Registration API.
 | Custom exception handlers | Done | Core | `core/exceptions.py` |
 | PostgreSQL database layer | Done | Infrastructure | `infrastructure/database/` |
 | User registration (`POST /users`) | Done | API + Domain | `api/routers/users.py`, `domain/services.py` |
-| Email verification (4-digit code) | Done | Infrastructure | `infrastructure/email/client.py`, `domain/services.py` |
-| Account activation (Basic Auth) | Done | API + Domain | `api/routers/users.py`, `core/security.py` |
+| Email verification (auto-send on registration + re-request by email) | Done | Infrastructure | `infrastructure/email/client.py`, `domain/services.py` |
+| Password policy validation (configurable) | Done | Domain | `domain/services.py`, `core/config.py` |
+| HMAC-hashed activation codes | Done | Infrastructure | `infrastructure/database/repositories.py` |
+| Brute-force protection (activation lockout) | Done | Domain + Infrastructure | `domain/services.py`, `infrastructure/database/repositories.py` |
+| Account activation (Basic Auth) | Done | API + Domain | `api/routers/users.py`, `domain/services.py` |
+| Current user info (`GET /users/me`) | Done | API | `api/routers/users.py`, `api/dependencies.py` |
 | Integration tests | Done | Tests | `tests/integration/` |
 | Architecture documentation | Done | Docs | `ARCHITECTURE.md` |

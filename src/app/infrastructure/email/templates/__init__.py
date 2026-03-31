@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.domain.models import SUPPORTED_LANGUAGES
+
 logger = logging.getLogger(__name__)
 
 _TEMPLATES_DIR = Path(__file__).parent
@@ -29,6 +31,11 @@ def load_templates() -> None:
         _cache[lang] = EmailTemplate(subject=subject, body=body.strip())
         logger.info("Loaded email template: %s (%s)", path.name, lang)
 
+    missing = [lang for lang in SUPPORTED_LANGUAGES if lang not in _cache]
+    if missing:
+        msg = f"Missing email templates for supported languages: {missing}"
+        raise RuntimeError(msg)
+
 
 def render(code: str, validity_minutes: int, lang: str) -> tuple[str, str]:
     """Return (subject, body) for the given language."""
@@ -36,5 +43,5 @@ def render(code: str, validity_minutes: int, lang: str) -> tuple[str, str]:
     if template is None:
         msg = f"No email template found for lang '{lang}'"
         raise RuntimeError(msg)
-    body = template.body.format(code=code, validity_minutes=validity_minutes)
+    body = template.body.format_map({"code": code, "validity_minutes": validity_minutes})
     return template.subject, body

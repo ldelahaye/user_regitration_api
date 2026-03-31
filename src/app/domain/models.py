@@ -18,9 +18,21 @@ class User:
 
 
 @dataclass(frozen=True)
+class AuthenticatedUser:
+    """User representation after credential verification — no password_hash exposed."""
+
+    id: UUID
+    email: str
+    is_active: bool
+    lang: str
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class ActivationCode:
     id: UUID
     user_id: UUID
     code: str
     expires_at: datetime
     used_at: datetime | None
+    failed_attempts: int = 0

@@ -76,7 +76,7 @@ async def test_register_should_raise_when_user_already_exists(
     user_repository.get_by_email.return_value = _USER
 
     with pytest.raises(UserAlreadyExistsError):
-        await service.register("test@example.com", "securepassword123", "fr")
+        await service.register("test@example.com", "Securepassword123!", "fr")
 
 
 async def test_register_should_send_activation_code(
@@ -84,7 +84,7 @@ async def test_register_should_send_activation_code(
     activation_code_repository: AsyncMock,
     email_service: AsyncMock,
 ) -> None:
-    user = await service.register("test@example.com", "securepassword123", "fr")
+    user = await service.register("test@example.com", "Securepassword123!", "fr")
 
     assert user == _USER
     activation_code_repository.create.assert_called_once()
@@ -98,7 +98,7 @@ async def test_register_should_raise_when_duplicate_entry_race_condition(
     user_repository.create.side_effect = DuplicateEntryError
 
     with pytest.raises(UserAlreadyExistsError):
-        await service.register("test@example.com", "securepassword123", "fr")
+        await service.register("test@example.com", "Securepassword123!", "fr")
 
 
 async def test_register_should_raise_email_send_error_when_email_fails(
@@ -108,7 +108,7 @@ async def test_register_should_raise_email_send_error_when_email_fails(
     email_service.send_activation_code.side_effect = NotificationError
 
     with pytest.raises(NotificationError):
-        await service.register("test@example.com", "securepassword123", "fr")
+        await service.register("test@example.com", "Securepassword123!", "fr")
 
 
 # --- request_activation_code() ---

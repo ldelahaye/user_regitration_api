@@ -25,16 +25,26 @@ class ActivationCodeRepository(ABC):
     async def create(self, user_id: UUID, code: str, ttl_seconds: int) -> ActivationCode: ...
 
     @abstractmethod
-    async def get_active_code(self, user_id: UUID, code: str) -> ActivationCode | None: ...
+    async def claim_active_code(self, user_id: UUID, code: str) -> ActivationCode | None:
+        """Atomically mark a valid (non-expired, non-used) code as used and return it.
+
+        Returns None if no matching active code exists.
+        """
+        ...
 
     @abstractmethod
     async def get_expired_code(self, user_id: UUID, code: str) -> ActivationCode | None: ...
 
     @abstractmethod
-    async def mark_used(self, code_id: UUID) -> None: ...
+    async def invalidate_all(self, user_id: UUID) -> None: ...
 
     @abstractmethod
-    async def invalidate_all(self, user_id: UUID) -> None: ...
+    async def record_failed_attempt(self, user_id: UUID, max_attempts: int) -> bool:
+        """Increment failed_attempts on all active codes for user_id.
+
+        Returns True if the attempt count has reached max_attempts (locked).
+        """
+        ...
 
 
 class EmailService(ABC):

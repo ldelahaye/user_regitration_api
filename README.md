@@ -2,6 +2,13 @@
 
 User registration API with email verification, built with FastAPI and PostgreSQL.
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Hexagonal architecture, layer diagram, data flow |
+| [FEATURES.md](FEATURES.md) | Feature inventory with status and key files |
+
 ## Tech Stack
 
 - **Language**: Python 3.13
@@ -10,49 +17,74 @@ User registration API with email verification, built with FastAPI and PostgreSQL
 - **Package Manager**: uv
 - **Containerization**: Docker + docker-compose
 
-## Architecture
+## Quick Start
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams and layer descriptions.
-
-This project follows **hexagonal architecture** (ports & adapters):
-
-```
-src/app/
-├── api/              # Inbound adapters (HTTP routes, request/response models)
-│   └── middlewares/  # Request logging, correlation IDs
-├── core/             # Configuration, logging, shared exceptions
-├── domain/           # Business logic, domain models, port interfaces
-├── infrastructure/   # Outbound adapters (database, email service)
-└── main.py           # Application entry point, lifespan events
-```
-
-- **Domain layer** defines business rules and port interfaces
-- **API layer** handles HTTP concerns and delegates to domain services
-- **Infrastructure layer** implements ports (database repositories, email clients)
-- **Dependencies flow inward**: API -> Domain <- Infrastructure
-
-See [FEATURES.md](FEATURES.md) for the full feature inventory and status.
-
-## Prerequisites
+### Prerequisites
 
 - Docker
 - docker-compose
 
 No local Python installation required.
 
-## Getting Started
-
-### Run with Docker
+### Run with Docker Compose
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-The API is available at http://localhost:8000
+| Resource | URL |
+|----------|-----|
+| API | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| Health check | http://localhost:8000/health |
 
-API documentation: http://localhost:8000/docs
+### Stop
 
-### Local Development
+```bash
+docker compose down
+```
+
+To also remove the database volume:
+
+```bash
+docker compose down -v
+```
+
+## Environment Variables
+
+All variables use the `APP_` prefix and can be set in a `.env` file or passed to `docker compose`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_DEBUG` | `false` | Enable debug mode |
+| `APP_DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/registration` | PostgreSQL connection URL |
+| `APP_DATABASE_MIN_POOL_SIZE` | `2` | Minimum DB connection pool size |
+| `APP_DATABASE_MAX_POOL_SIZE` | `10` | Maximum DB connection pool size |
+| `APP_EMAIL_MOCK` | `true` | When `true`, emails are logged instead of sent |
+| `APP_EMAIL_API_URL` | `http://localhost:8025/api/v1/send` | Email service API endpoint |
+| `APP_EMAIL_API_KEY` | _(empty)_ | Email service API key |
+| `APP_EMAIL_FROM` | `noreply@registration.local` | Sender address for outgoing emails |
+| `APP_ACTIVATION_CODE_TTL_MINUTES` | `1` | Activation code validity duration (minutes) |
+| `APP_ACTIVATION_MAX_ATTEMPTS` | `5` | Max failed activation attempts before lockout |
+| `APP_BCRYPT_ROUNDS` | `12` | bcrypt cost factor |
+| `APP_HMAC_SECRET` | _(must be set)_ | Server-side secret for HMAC-hashed activation codes |
+| `APP_PASSWORD_MIN_LENGTH` | `12` | Minimum password length |
+| `APP_PASSWORD_MAX_LENGTH` | `128` | Maximum password length |
+| `APP_PASSWORD_REQUIRE_UPPERCASE` | `true` | Require at least one uppercase letter |
+| `APP_PASSWORD_REQUIRE_LOWERCASE` | `true` | Require at least one lowercase letter |
+| `APP_PASSWORD_REQUIRE_DIGIT` | `true` | Require at least one digit |
+| `APP_PASSWORD_REQUIRE_SPECIAL` | `true` | Require at least one special character |
+
+**Example `.env`:**
+```env
+APP_EMAIL_MOCK=false
+APP_EMAIL_API_KEY=your-api-key
+APP_EMAIL_FROM=noreply@yourdomain.com
+APP_ACTIVATION_CODE_TTL_MINUTES=10
+APP_HMAC_SECRET=your-random-secret-here
+```
+
+## Local Development
 
 ```bash
 # Install uv (if not already installed)
@@ -68,24 +100,31 @@ uv run pre-commit install
 uv run uvicorn app.main:app --reload
 ```
 
-### Run Tests
+## Tests
+
+### Unit tests
 
 ```bash
 uv run pytest
 ```
 
-### Integration Tests
+### Integration tests
 
 Integration tests require a real PostgreSQL instance.
 
-**Using Docker Compose:**
 ```bash
+# Start test database
 docker compose -f docker-compose.test.yml up -d
+
+# Run integration tests
 uv run pytest -m integration
+
+# Tear down
 docker compose -f docker-compose.test.yml down
 ```
 
-**Custom database URL:**
+Or with a custom database URL:
+
 ```bash
 TEST_DATABASE_URL=postgresql://user:pass@host:5432/dbname uv run pytest -m integration
 ```
@@ -93,34 +132,30 @@ TEST_DATABASE_URL=postgresql://user:pass@host:5432/dbname uv run pytest -m integ
 ### Code Quality
 
 ```bash
-# Linting
-uv run ruff check src/ tests/
-
-# Formatting check
-uv run ruff format --check src/ tests/
-
-# Type checking
-uv run mypy
+uv run ruff check src/ tests/    # Linting
+uv run ruff format --check src/ tests/  # Formatting
+uv run mypy                      # Type checking
 ```
 
 ## API Endpoints
 
-| Method | Path | Description | Status Code |
-|--------|------|-------------|-------------|
-| `GET` | `/health` | Health check | 200 |
-| `POST` | `/users` | Register a new user | 201 |
-| `POST` | `/users/{user_id}/activation-code` | Send 4-digit activation code | 201 |
-| `POST` | `/users/activate` | Activate account (Basic Auth + code) | 200 |
+| Method | Path | Auth | Description | Status Code |
+|--------|------|------|-------------|-------------|
+| `GET` | `/health` | — | Health check | 200 |
+| `POST` | `/users` | — | Register a new user (auto-sends activation code) | 201 |
+| `POST` | `/users/activation-code` | — | Re-request activation code by email | 201 |
+| `POST` | `/users/activate` | Basic Auth | Activate account with 4-digit code | 200 |
+| `GET` | `/users/me` | Basic Auth | Get current user info (active accounts only) | 200 |
 
 ### `POST /users`
 
-Register a new user with email and password.
+Register a new user. An activation code is automatically sent by email.
 
 **Request body:**
 ```json
 {
   "email": "user@example.com",
-  "password": "securepassword123",
+  "password": "SecurePass123!",
   "lang": "fr"
 }
 ```
@@ -138,31 +173,37 @@ Register a new user with email and password.
 }
 ```
 
+If the email service is unavailable, the user is still created. A new code can be requested via `POST /users/activation-code`.
+
+**Password policy:** minimum 12 characters, must include uppercase, lowercase, digit, and special character. These defaults follow [ANSSI R22](https://cyber.gouv.fr/publications/recommandations-relatives-lauthentification-multifacteur-et-aux-mots-de-passe) (guide "Multi-factor authentication and passwords", v2 — October 2021) which recommends a minimum entropy of 80 bits for user-chosen passwords without rate limiting, corresponding to 12+ characters with 4 character classes. All rules are configurable via environment variables.
+
 **Errors:**
 - `409` — Email already registered (`USER_ALREADY_EXISTS`)
-- `422` — Validation error (invalid email, password too short, unsupported lang)
+- `422` — Weak password (`WEAK_PASSWORD`) or validation error (invalid email, unsupported lang)
 
-### `POST /users/{user_id}/activation-code`
+### `POST /users/activation-code`
 
-Generate and send a 4-digit activation code by email. Code expires after 1 minute.
+Re-request a 4-digit activation code by email. Always returns 201 regardless of whether the email exists (prevents user enumeration).
+
+**Request body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
 
 **Response (201):**
 ```json
 {
-  "id": "uuid",
-  "user_id": "uuid",
-  "expires_at": "2026-03-30T12:01:00Z"
+  "detail": "If the email exists, an activation code has been sent"
 }
 ```
 
-**Errors:**
-- `404` — User not found (`USER_NOT_FOUND`)
-
 ### `POST /users/activate`
 
-Activate a user account with HTTP Basic Auth and a 4-digit activation code.
+Activate a user account using HTTP Basic Auth and a 4-digit code.
 
-**Authentication:** HTTP Basic Auth (email as username, password as password).
+**Authentication:** HTTP Basic Auth — email as username, password as password.
 
 **Request body:**
 ```json
@@ -181,8 +222,30 @@ Activate a user account with HTTP Basic Auth and a 4-digit activation code.
 **Errors:**
 - `400` — Invalid activation code (`INVALID_ACTIVATION_CODE`)
 - `400` — Activation code expired (`ACTIVATION_CODE_EXPIRED`)
-- `401` — Invalid credentials (wrong email or password)
+- `401` — Invalid credentials
 - `422` — Validation error (code must be exactly 4 digits)
+- `429` — Too many failed attempts (`ACTIVATION_CODE_LOCKED`)
+
+### `GET /users/me`
+
+Get the current authenticated user's information. Requires an active account.
+
+**Authentication:** HTTP Basic Auth — email as username, password as password.
+
+**Response (200):**
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "is_active": true,
+  "lang": "fr",
+  "created_at": "2026-03-30T12:00:00Z"
+}
+```
+
+**Errors:**
+- `401` — Missing or invalid credentials
+- `403` — Account not yet activated (`INACTIVE_USER`)
 
 ## Project Structure
 

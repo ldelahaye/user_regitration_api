@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS activation_codes (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    code       CHAR(4) NOT NULL,
+    code       TEXT NOT NULL,
+    failed_attempts INT NOT NULL DEFAULT 0,
     expires_at TIMESTAMPTZ NOT NULL,
     used_at    TIMESTAMPTZ
 );
