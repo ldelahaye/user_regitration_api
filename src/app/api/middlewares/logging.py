@@ -7,28 +7,14 @@ and a single logging.Filter installed at startup to inject it into all log recor
 import logging
 import time
 import uuid
-from contextvars import ContextVar
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
+
+from app.core.logging import _UUID_RE, CORRELATION_ID_HEADER, correlation_id_var
 
 logger = logging.getLogger(__name__)
-
-CORRELATION_ID_HEADER = "X-Correlation-ID"
-
-correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="-")
-
-
-class CorrelationIdFilter(logging.Filter):
-    """Injects correlation_id from the current async context into every log record.
-
-    Install once at startup via setup_logging — never add/remove per request.
-    """
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.correlation_id = correlation_id_var.get()
-        return True
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -38,7 +24,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        cid = request.headers.get(CORRELATION_ID_HEADER, str(uuid.uuid4()))
+        raw = request.headers.get(CORRELATION_ID_HEADER, "")
+        cid = raw if _UUID_RE.match(raw) else str(uuid.uuid4())
         token = correlation_id_var.set(cid)
         request.state.correlation_id = cid
 
@@ -53,7 +40,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 request.url.path,
                 duration_ms,
             )
-            raise
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error", "error_code": "INTERNAL_ERROR"},
+                headers={CORRELATION_ID_HEADER: cid},
+            )
         else:
             duration_ms = (time.monotonic() - start_time) * 1000
             response.headers[CORRELATION_ID_HEADER] = cid
