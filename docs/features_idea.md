@@ -6,37 +6,6 @@
 * Create a password reset feature
 
 
-* POST /users/activate should not reveal the code pattern in validation errors
-Currently we get:
-```json
-{
-  "detail": "body → code: String should match pattern '^\\d{4}$'",
-  "error_code": "VALIDATION_ERROR",
-  "errors": [
-    {
-      "type": "string_pattern_mismatch",
-      "loc": [
-        "body",
-        "code"
-      ],
-      "msg": "String should match pattern '^\\d{4}$'",
-      "input": "62734",
-      "ctx": {
-        "pattern": "^\\d{4}$"
-      }
-    }
-  ]
-}
-```
-When the code pattern validation fails, we should only return:
-```json
-{
-  "detail": "The activation code is invalid",
-  "error_code": "INVALID_ACTIVATION_CODE"
-}
-```
-
-
 * Integrate multi-factor authentication (MFA/2FA)
 Following ANSSI recommendations R1-R4 from the guide "Multi-factor authentication and passwords" (v2, October 2021), multi-factor authentication should be offered to strengthen user account security.
 

@@ -77,15 +77,12 @@ sequenceDiagram
     R->>R: Validate (Pydantic)
     R->>S: Call Service
     S->>DB: BEGIN transaction
-    S->>DB: Query/Insert
+    S->>DB: Query/Insert (user + activation code)
     DB-->>S: Result
     S->>E: Send email (activation code)
     E-->>S: OK / Error
-    alt Email success
-        S->>DB: COMMIT
-    else Email failure
-        S->>DB: ROLLBACK
-    end
+    Note over S: Email failure is caught and logged.<br/>User is persisted regardless.
+    S->>DB: COMMIT
     S-->>R: Domain Model
     R-->>M: HTTP Response
     M->>M: Log request (method, path, status, duration)
@@ -104,17 +101,21 @@ users
 └── created_at    TIMESTAMPTZ DEFAULT now()
 
 activation_codes
-├── id         UUID (PK, auto-generated)
-├── user_id    UUID (FK → users.id, CASCADE)
-├── code       CHAR(4) NOT NULL
-├── expires_at TIMESTAMPTZ NOT NULL
-└── used_at    TIMESTAMPTZ (NULL until used)
+├── id              UUID (PK, auto-generated)
+├── user_id         UUID (FK → users.id, CASCADE)
+├── code            TEXT NOT NULL (HMAC-SHA256 hash)
+├── failed_attempts INT NOT NULL DEFAULT 0
+├── expires_at      TIMESTAMPTZ NOT NULL
+└── used_at         TIMESTAMPTZ (NULL until used)
+
+Indexes:
+└── idx_activation_codes_user_code ON (user_id, code, expires_at)
 ```
 
 ## Database Connection Lifecycle
 
 1. **Startup**: `init_pool()` creates asyncpg connection pool, verifies connectivity with `SELECT 1`
-2. **Migrations**: `run_migrations()` applies schema (idempotent `CREATE TABLE IF NOT EXISTS`)
+2. **Migrations**: `run_migrations()` applies versioned SQL migrations via yoyo-migrations (files in `infrastructure/database/migrations/`)
 3. **Request**: `get_connection()` yield dependency acquires a connection, starts a transaction, commits on success or rollbacks on error (following FastAPI's yield + try pattern)
 4. **Shutdown**: `close_pool()` closes all pool connections
 
