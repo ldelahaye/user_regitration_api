@@ -77,15 +77,12 @@ sequenceDiagram
     R->>R: Validate (Pydantic)
     R->>S: Call Service
     S->>DB: BEGIN transaction
-    S->>DB: Query/Insert
+    S->>DB: Query/Insert (user + activation code)
     DB-->>S: Result
     S->>E: Send email (activation code)
     E-->>S: OK / Error
-    alt Email success
-        S->>DB: COMMIT
-    else Email failure
-        S->>DB: ROLLBACK
-    end
+    Note over S: Email failure is caught and logged.<br/>User is persisted regardless.
+    S->>DB: COMMIT
     S-->>R: Domain Model
     R-->>M: HTTP Response
     M->>M: Log request (method, path, status, duration)
