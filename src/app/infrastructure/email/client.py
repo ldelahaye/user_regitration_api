@@ -85,8 +85,8 @@ class ConsoleEmailService(EmailService):
         return True
 
     async def send_activation_code(self, email: str, code: str, validity_minutes: int, lang: str) -> None:
-        render(code, validity_minutes, lang)  # validate template renders without error
-        logger.info("[MOCK] activation code sent → %s (lang=%s, ttl=%d min)", email, lang, validity_minutes)
+        subject, body = render(code, validity_minutes, lang)
+        logger.info("[MOCK] Email to %s\n--- Subject: %s ---\n%s\n--- End ---", email, subject, body)
 
     async def close(self) -> None:
         logger.info("Console email service closed")
