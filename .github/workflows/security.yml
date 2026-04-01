@@ -39,7 +39,7 @@ jobs:
         run: docker build -t user-registration-api:ci .
 
       - name: Scan image with Grype
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         id: grype
         with:
           image: user-registration-api:ci
