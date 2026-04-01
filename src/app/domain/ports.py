@@ -57,6 +57,9 @@ class EmailService(ABC):
     async def check_connectivity(self) -> None: ...
 
     @abstractmethod
+    async def is_available(self) -> bool: ...
+
+    @abstractmethod
     async def send_activation_code(self, email: str, code: str, validity_minutes: int, lang: str) -> None: ...
 
     @abstractmethod

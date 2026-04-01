@@ -45,6 +45,13 @@ class HttpEmailService(EmailService):
         except httpx.HTTPError:
             logger.warning("Email API unreachable (%s)", self._api_url)
 
+    async def is_available(self) -> bool:
+        try:
+            await self._client.head(self._api_url)
+            return True
+        except httpx.HTTPError:
+            return False
+
     async def send_activation_code(self, email: str, code: str, validity_minutes: int, lang: str) -> None:
         subject, body = render(code, validity_minutes, lang)
         payload = {
@@ -73,6 +80,9 @@ class ConsoleEmailService(EmailService):
 
     async def check_connectivity(self) -> None:
         logger.info("Console email service: connectivity check skipped (mock)")
+
+    async def is_available(self) -> bool:
+        return True
 
     async def send_activation_code(self, email: str, code: str, validity_minutes: int, lang: str) -> None:
         render(code, validity_minutes, lang)  # validate template renders without error

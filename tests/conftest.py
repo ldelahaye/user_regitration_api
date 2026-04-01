@@ -22,11 +22,14 @@ async def client() -> AsyncIterator[AsyncClient]:
         patch("app.main.init_pool", new_callable=AsyncMock),
         patch("app.main.run_migrations", new_callable=AsyncMock),
         patch("app.main.close_pool", new_callable=AsyncMock),
-        patch("app.main.create_email_service", return_value=AsyncMock()),
+        patch("app.main.create_email_service", return_value=AsyncMock(is_available=AsyncMock(return_value=True))),
         patch("app.main.load_templates"),
     ):
+        mock_email_service = AsyncMock(is_available=AsyncMock(return_value=True))
         app.state.db_pool = mock_pool
+        app.state.email_service = mock_email_service
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             yield client
+        del app.state.email_service
         del app.state.db_pool
