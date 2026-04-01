@@ -1,4 +1,4 @@
-FROM python:3.13-slim-trixie AS builder
+FROM python:3.14-slim-trixie AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -11,7 +11,7 @@ COPY src/ src/
 RUN uv sync --frozen --no-dev
 
 
-FROM python:3.13-slim-trixie
+FROM python:3.14-slim-trixie
 
 WORKDIR /app
 
