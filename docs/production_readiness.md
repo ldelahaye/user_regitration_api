@@ -79,11 +79,9 @@ Implemented via yoyo-migrations with versioned SQL files in `infrastructure/data
 
 ---
 
-### 7. Graceful Shutdown
+### 7. ~~Graceful Shutdown~~ ✅ Resolved
 
-Uvicorn receives `SIGTERM` on `docker stop` but there is no drain timeout configured. In-flight asyncpg connections may be cut mid-transaction.
-
-Fix: configure `--timeout-graceful-shutdown` in uvicorn, or use gunicorn as a process manager with uvicorn workers for proper signal handling.
+Uvicorn is configured with `--timeout-graceful-shutdown 5` in both the `Dockerfile` and `Procfile`, allowing in-flight requests to complete before shutdown.
 
 ---
 
@@ -171,7 +169,8 @@ Fix: integrate with an alerting system (PagerDuty, OpsGenie) or configure log-ba
 | ~~P1~~ | ~~Versioned schema migrations~~ | ✅ Done |
 | ~~P1~~ | ~~Health check covers email service~~ | ✅ Done |
 | P1 | Email enumeration — HTTP 409 → 202 | ~30 min |
-| P1 | Graceful shutdown + worker configuration | ~1h |
+| ~~P1~~ | ~~Graceful shutdown~~ | ✅ Done |
+| P1 | Worker configuration (multi-process) | ~1h |
 | P2 | Cleanup job for unactivated accounts | ~2h |
 | P2 | Structured JSON logs | ~1h |
 | P3 | Prometheus / OpenTelemetry metrics | ~1 day |

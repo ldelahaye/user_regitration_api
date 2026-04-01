@@ -36,7 +36,7 @@ docker compose up --build
 |----------|-----|
 | API | http://localhost:8000 |
 | Swagger UI | http://localhost:8000/docs |
-| Health check | http://localhost:8000/health |
+| Health check | http://localhost:8000/health (see [response format](#health-check)) |
 
 ### Stop
 
@@ -141,11 +141,33 @@ uv run mypy                      # Type checking
 
 | Method | Path | Auth | Description | Status Code |
 |--------|------|------|-------------|-------------|
-| `GET` | `/health` | — | Health check | 200 |
+| `GET` | `/health` | — | Health check (database + email) | 200 / 503 |
 | `POST` | `/users` | — | Register a new user (auto-sends activation code) | 201 |
 | `POST` | `/users/activation-code` | — | Re-request activation code by email | 201 |
 | `POST` | `/users/activate` | Basic Auth | Activate account with 4-digit code | 200 |
 | `GET` | `/users/me` | Basic Auth | Get current user info (active accounts only) | 200 |
+
+### Health Check
+
+`GET /health` checks database and email service connectivity.
+
+**Response (200 — healthy):**
+```json
+{
+  "status": "healthy",
+  "components": {"database": "up", "email": "up"}
+}
+```
+
+**Response (200 — degraded):** email service unreachable, but database is up.
+```json
+{
+  "status": "degraded",
+  "components": {"database": "up", "email": "down"}
+}
+```
+
+**Response (503):** database unreachable.
 
 ### `POST /users`
 
