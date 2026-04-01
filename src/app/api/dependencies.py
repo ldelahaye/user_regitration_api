@@ -10,7 +10,13 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.container import create_activation_code_repository, create_user_repository
 from app.core.config import settings
-from app.domain.exceptions import InactiveUserError, UserNotFoundError
+from app.domain.exceptions import (
+    ActivationCodeExpiredError,
+    ActivationCodeLockedError,
+    InactiveUserError,
+    InvalidActivationCodeError,
+    UserNotFoundError,
+)
 from app.domain.models import AuthenticatedUser
 from app.domain.ports import ActivationCodeRepository, EmailService, UserRepository
 from app.domain.services import PasswordPolicy, UserService, UserServiceConfig
@@ -30,12 +36,22 @@ def get_email_service(request: Request) -> EmailService:
 
 
 async def get_connection(pool: Annotated[asyncpg.Pool, Depends(get_pool)]) -> AsyncGenerator[asyncpg.Connection]:
-    """Acquire a connection with transaction — commit on success, rollback on error."""
+    """Acquire a connection with transaction — commit on success, rollback on error.
+
+    Activation errors (invalid code, locked, expired) are committed before re-raising
+    because record_failed_attempt and invalidate_all writes must persist even on failure.
+    """
     async with pool.acquire() as conn:
         transaction = conn.transaction()
         await transaction.start()
         try:
             yield conn
+        except (InvalidActivationCodeError, ActivationCodeLockedError, ActivationCodeExpiredError):
+            try:
+                await transaction.commit()
+            except Exception:
+                logger.exception("Failed to commit transaction for activation tracking")
+            raise
         except Exception:
             try:
                 await transaction.rollback()
