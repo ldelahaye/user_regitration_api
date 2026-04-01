@@ -1,6 +1,6 @@
 # Container Image CVE Report
 
-**Image**: `python:3.13-alpine`
+**Image**: `python:3.14-slim-trixie`
 **Scan date**: 2026-04-01
 **Scanner**: Grype 0.110.0
 

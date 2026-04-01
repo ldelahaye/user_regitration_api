@@ -43,7 +43,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -59,7 +59,7 @@ relative_files = true
 source = ["app"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 src = ["src", "tests"]
 line-length = 120
 
