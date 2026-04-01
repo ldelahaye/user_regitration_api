@@ -91,6 +91,21 @@ To also remove the database volume:
 docker compose down -v
 ```
 
+## Tests
+
+Requires Docker only — no local Python installation needed.
+
+```bash
+# Start test database
+docker compose -f docker-compose.test.yml up -d
+
+# Run integration tests
+docker compose run --rm app uv run pytest -m integration
+
+# Tear down
+docker compose -f docker-compose.test.yml down
+```
+
 ## Local Development
 
 ```bash
@@ -105,35 +120,14 @@ uv run pre-commit install
 
 # Run the app
 uv run uvicorn app.main:app --reload
-```
 
-## Tests
-
-### Unit tests
-
-```bash
+# Unit tests
 uv run pytest
-```
 
-### Integration tests
-
-Integration tests require a real PostgreSQL instance.
-
-```bash
-# Start test database
+# Integration tests (requires test database running)
 docker compose -f docker-compose.test.yml up -d
-
-# Run integration tests
-uv run pytest -m integration
-
-# Tear down
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/registration_test uv run pytest -m integration
 docker compose -f docker-compose.test.yml down
-```
-
-Or with a custom database URL:
-
-```bash
-TEST_DATABASE_URL=postgresql://user:pass@host:5432/dbname uv run pytest -m integration
 ```
 
 ### Code Quality
