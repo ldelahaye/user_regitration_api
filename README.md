@@ -26,19 +26,35 @@ User registration API with email verification, built with FastAPI and PostgreSQL
 
 No local Python installation required.
 
-### Run with Docker Compose
+### 1. Clone and configure
+
+```bash
+git clone https://github.com/ldelahaye/user-registration-api.git
+cd user-registration-api
+cp .env.example .env
+```
+
+Edit `.env` and set `APP_HMAC_SECRET` to any random value. This secret is used to HMAC-hash the 4-digit activation codes before storing them in database (a 4-digit code has only 10 000 possible values, so bcrypt alone would be brute-forceable — HMAC makes it impossible without the server-side secret):
+
+```env
+APP_HMAC_SECRET=my-local-secret-change-me
+```
+
+### 2. Start
 
 ```bash
 docker compose up --build
 ```
 
+The app waits for PostgreSQL to be healthy, runs database migrations automatically, then starts.
+
 | Resource | URL |
 |----------|-----|
 | API | http://localhost:8000 |
 | Swagger UI | http://localhost:8000/docs |
-| Health check | http://localhost:8000/health (see [response format](#health-check)) |
+| Health check | http://localhost:8000/health |
 
-### Stop
+### 3. Stop
 
 ```bash
 docker compose down
