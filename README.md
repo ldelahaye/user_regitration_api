@@ -2,27 +2,55 @@
 
 User registration API with email verification, built with FastAPI and PostgreSQL.
 
+### How it works
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant API
+    participant DB as Database
+    participant Email as Email Service
+
+    Client->>API: POST /users (email, password, lang)
+    API->>DB: INSERT user + activation code
+    API->>Email: Send 4-digit code
+    API-->>Client: 201 Created
+
+    Note over Client,Email: User reads the 4-digit code from email (valid 1 min)
+
+    Client->>API: POST /users/activate (Basic Auth + code)
+    API->>DB: Verify credentials + validate code
+    API->>DB: Activate user
+    API-->>Client: 200 OK
+
+    Client->>API: GET /users/me (Basic Auth)
+    API->>DB: Verify credentials + fetch user
+    API-->>Client: 200 OK (user data)
+```
+
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Hexagonal architecture, layer diagram, data flow |
 | [FEATURES.md](FEATURES.md) | Feature inventory with status and key files |
+| [.env.example](.env.example) | All environment variables with defaults and descriptions |
 
 ## Tech Stack
 
-- **Language**: Python 3.13
+- **Language**: Python 3.14
 - **Framework**: FastAPI
 - **Database**: PostgreSQL 17 (raw SQL with asyncpg, no ORM)
 - **Package Manager**: uv
-- **Containerization**: Docker + docker-compose
+- **Containerization**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions (lint, test, security scan, container build)
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker
-- docker-compose
+- Docker Compose
 
 No local Python installation required.
 
@@ -34,24 +62,7 @@ cd user-registration-api
 cp .env.example .env
 ```
 
-The `.env.example` file contains all available variables with their defaults:
-
-```env
-# Required
-APP_HMAC_SECRET=replace-with-a-random-secret
-
-# Optional (defaults shown)
-APP_PORT=8000
-APP_DEBUG=false
-APP_EMAIL_MOCK=true
-APP_ACTIVATION_CODE_TTL_MINUTES=1
-
-# Database (used by docker-compose)
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=registration
-```
+Edit `.env` and set `APP_HMAC_SECRET` to a random value. See [`.env.example`](.env.example) for all available variables.
 
 ### 2. Start
 
@@ -61,9 +72,10 @@ docker compose up --build
 
 The app waits for PostgreSQL to be healthy, runs database migrations automatically, then starts.
 
+The default port is `8000` (configurable via `APP_PORT` in `.env`).
+
 | Resource | URL |
 |----------|-----|
-| API | http://localhost:8000 |
 | Swagger UI | http://localhost:8000/docs |
 | Health check | http://localhost:8000/health |
 
@@ -77,41 +89,6 @@ To also remove the database volume:
 
 ```bash
 docker compose down -v
-```
-
-## Environment Variables
-
-All variables use the `APP_` prefix and can be set in a `.env` file or passed to `docker compose`.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_PORT` | `8000` | Port the API listens on |
-| `APP_DEBUG` | `false` | Enable debug mode |
-| `APP_DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/registration` | PostgreSQL connection URL |
-| `APP_DATABASE_MIN_POOL_SIZE` | `2` | Minimum DB connection pool size |
-| `APP_DATABASE_MAX_POOL_SIZE` | `10` | Maximum DB connection pool size |
-| `APP_EMAIL_MOCK` | `true` | When `true`, emails are logged instead of sent |
-| `APP_EMAIL_API_URL` | `http://localhost:8025/api/v1/send` | Email service API endpoint |
-| `APP_EMAIL_API_KEY` | _(empty)_ | Email service API key |
-| `APP_EMAIL_FROM` | `noreply@registration.local` | Sender address for outgoing emails |
-| `APP_ACTIVATION_CODE_TTL_MINUTES` | `1` | Activation code validity duration (minutes) |
-| `APP_ACTIVATION_MAX_ATTEMPTS` | `5` | Max failed activation attempts before lockout |
-| `APP_BCRYPT_ROUNDS` | `12` | bcrypt cost factor |
-| `APP_HMAC_SECRET` | _(must be set)_ | Server-side secret for HMAC-hashed activation codes |
-| `APP_PASSWORD_MIN_LENGTH` | `12` | Minimum password length |
-| `APP_PASSWORD_MAX_LENGTH` | `128` | Maximum password length |
-| `APP_PASSWORD_REQUIRE_UPPERCASE` | `true` | Require at least one uppercase letter |
-| `APP_PASSWORD_REQUIRE_LOWERCASE` | `true` | Require at least one lowercase letter |
-| `APP_PASSWORD_REQUIRE_DIGIT` | `true` | Require at least one digit |
-| `APP_PASSWORD_REQUIRE_SPECIAL` | `true` | Require at least one special character |
-
-**Example `.env`:**
-```env
-APP_EMAIL_MOCK=false
-APP_EMAIL_API_KEY=your-api-key
-APP_EMAIL_FROM=noreply@yourdomain.com
-APP_ACTIVATION_CODE_TTL_MINUTES=10
-APP_HMAC_SECRET=your-random-secret-here
 ```
 
 ## Local Development
@@ -167,149 +144,56 @@ uv run ruff format --check src/ tests/  # Formatting
 uv run mypy                      # Type checking
 ```
 
+## CI/CD
+
+Three GitHub Actions workflows run on push and pull requests to `main`:
+
+| Workflow | Description |
+|----------|-------------|
+| **CI** (`ci.yml`) | Lint (ruff, mypy), unit tests with coverage, integration tests, container build and push to GHCR |
+| **Security** (`security.yml`) | Dependency audit (pip-audit), Docker image scan (Grype) |
+| **CodeQL** (`codeql.yml`) | Weekly static analysis |
+
+[Dependabot](.github/dependabot.yml) keeps pip, GitHub Actions, and Docker dependencies up to date.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description | Status Code |
 |--------|------|------|-------------|-------------|
 | `GET` | `/health` | — | Health check (database + email) | 200 / 503 |
-| `POST` | `/users` | — | Register a new user (auto-sends activation code) | 201 |
+| `POST` | `/users` | — | Register a new user (auto-sends activation code) | 201 / 502 |
 | `POST` | `/users/activation-code` | — | Re-request activation code by email | 201 |
 | `POST` | `/users/activate` | Basic Auth | Activate account with 4-digit code | 200 |
 | `GET` | `/users/me` | Basic Auth | Get current user info (active accounts only) | 200 |
 
-### Health Check
+Full request/response documentation is available in Swagger UI at `/docs`.
 
-`GET /health` checks database and email service connectivity.
+### Registration flow
 
-**Response (200 — healthy):**
-```json
-{
-  "status": "healthy",
-  "components": {"database": "up", "email": "up"}
-}
-```
+1. `POST /users` with email, password, and lang (`fr`, `en`, `es`, `it`, `de`) — creates the account and sends an activation code by email. If the email service is unavailable, the request fails with 502 and the user is not created (transaction rollback).
+2. Retrieve the 4-digit activation code from the email (in dev mode with `APP_EMAIL_MOCK=true`, the code is visible in the container logs).
+3. `POST /users/activate` with Basic Auth (email + password) and the code — activates the account.
+4. `GET /users/me` with Basic Auth — returns user info (requires an active account).
 
-**Response (200 — degraded):** email service unreachable, but database is up.
-```json
-{
-  "status": "degraded",
-  "components": {"database": "up", "email": "down"}
-}
-```
+A new code can be re-requested via `POST /users/activation-code`. After too many failed attempts, the code is locked (429).
 
-**Response (503):** database unreachable.
+### Password policy
 
-### `POST /users`
-
-Register a new user. An activation code is automatically sent by email.
-
-**Request body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!",
-  "lang": "fr"
-}
-```
-
-`lang` is required. Supported values: `fr`, `en`, `es`, `it`, `de`.
-
-**Response (201):**
-```json
-{
-  "id": "uuid",
-  "email": "user@example.com",
-  "is_active": false,
-  "lang": "fr",
-  "created_at": "2026-03-30T12:00:00Z"
-}
-```
-
-If the email service is unavailable, the user is still created. A new code can be requested via `POST /users/activation-code`.
-
-**Password policy:** minimum 12 characters, must include uppercase, lowercase, digit, and special character. These defaults follow [ANSSI R22](https://cyber.gouv.fr/publications/recommandations-relatives-lauthentification-multifacteur-et-aux-mots-de-passe) (guide "Multi-factor authentication and passwords", v2 — October 2021) which recommends a minimum entropy of 80 bits for user-chosen passwords without rate limiting, corresponding to 12+ characters with 4 character classes. All rules are configurable via environment variables.
-
-**Errors:**
-- `409` — Email already registered (`USER_ALREADY_EXISTS`)
-- `422` — Weak password (`WEAK_PASSWORD`) or validation error (invalid email, unsupported lang)
-
-### `POST /users/activation-code`
-
-Re-request a 4-digit activation code by email. Always returns 201 regardless of whether the email exists (prevents user enumeration).
-
-**Request body:**
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-**Response (201):**
-```json
-{
-  "detail": "If the email exists, an activation code has been sent"
-}
-```
-
-### `POST /users/activate`
-
-Activate a user account using HTTP Basic Auth and a 4-digit code.
-
-**Authentication:** HTTP Basic Auth — email as username, password as password.
-
-**Request body:**
-```json
-{
-  "code": "1234"
-}
-```
-
-**Response (200):**
-```json
-{
-  "detail": "Account activated successfully"
-}
-```
-
-**Errors:**
-- `400` — Invalid activation code (`INVALID_ACTIVATION_CODE`)
-- `400` — Activation code expired (`ACTIVATION_CODE_EXPIRED`)
-- `401` — Invalid credentials
-- `422` — Validation error (code must be exactly 4 digits)
-- `429` — Too many failed attempts (`ACTIVATION_CODE_LOCKED`)
-
-### `GET /users/me`
-
-Get the current authenticated user's information. Requires an active account.
-
-**Authentication:** HTTP Basic Auth — email as username, password as password.
-
-**Response (200):**
-```json
-{
-  "id": "uuid",
-  "email": "user@example.com",
-  "is_active": true,
-  "lang": "fr",
-  "created_at": "2026-03-30T12:00:00Z"
-}
-```
-
-**Errors:**
-- `401` — Missing or invalid credentials
-- `403` — Account not yet activated (`INACTIVE_USER`)
+Minimum 12 characters with uppercase, lowercase, digit, and special character. These defaults follow [ANSSI R22](https://cyber.gouv.fr/publications/recommandations-relatives-lauthentification-multifacteur-et-aux-mots-de-passe) (minimum entropy of 80 bits for user-chosen passwords). All rules are configurable via environment variables (see `.env.example`).
 
 ## Project Structure
 
 ```
 .
+├── .github/workflows/    # CI/CD pipelines (lint, test, security, build)
+├── docs/                 # Additional documentation
 ├── src/app/              # Application source code
-│   ├── api/              # API routers and schemas
+│   ├── api/              # API routers, schemas, middlewares
 │   ├── core/             # Config, settings, exceptions
 │   ├── domain/           # Domain models and business logic
-│   ├── infrastructure/   # Database and external services
+│   ├── infrastructure/   # Database, email, migrations
 │   └── main.py           # FastAPI app entry point
-├── tests/                # Test suite
+├── tests/                # Unit and integration tests
 ├── docker-compose.yml    # Multi-container setup
 ├── Dockerfile            # Multi-stage production build
 └── pyproject.toml        # Project config and dependencies
