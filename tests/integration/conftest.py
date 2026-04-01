@@ -1,5 +1,6 @@
 """Fixtures for integration tests requiring a real PostgreSQL database."""
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, patch
@@ -9,7 +10,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.domain.ports import EmailService
-from app.infrastructure.database.migrations import SCHEMA_SQL
+from app.infrastructure.database.migrations import _apply_migrations
 from app.main import app
 
 DATABASE_URL = os.environ.get(
@@ -20,9 +21,8 @@ DATABASE_URL = os.environ.get(
 
 @pytest.fixture
 async def db_pool() -> AsyncIterator[asyncpg.Pool]:
+    await asyncio.to_thread(_apply_migrations, DATABASE_URL)
     pool = await asyncpg.create_pool(dsn=DATABASE_URL)
-    async with pool.acquire() as conn:
-        await conn.execute(SCHEMA_SQL)
     yield pool
     async with pool.acquire() as conn:
         await conn.execute("TRUNCATE activation_codes, users CASCADE")
