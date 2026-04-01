@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_name: str = "User Registration API"
+    port: int = 8000
     debug: bool = False
 
     cors_allowed_origins: list[str] = []

@@ -34,10 +34,23 @@ cd user-registration-api
 cp .env.example .env
 ```
 
-Edit `.env` and set `APP_HMAC_SECRET` to any random value. This secret is used to HMAC-hash the 4-digit activation codes before storing them in database (a 4-digit code has only 10 000 possible values, so bcrypt alone would be brute-forceable — HMAC makes it impossible without the server-side secret):
+The `.env.example` file contains all available variables with their defaults:
 
 ```env
-APP_HMAC_SECRET=my-local-secret-change-me
+# Required
+APP_HMAC_SECRET=replace-with-a-random-secret
+
+# Optional (defaults shown)
+APP_PORT=8000
+APP_DEBUG=false
+APP_EMAIL_MOCK=true
+APP_ACTIVATION_CODE_TTL_MINUTES=1
+
+# Database (used by docker-compose)
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=registration
 ```
 
 ### 2. Start
@@ -72,6 +85,7 @@ All variables use the `APP_` prefix and can be set in a `.env` file or passed to
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_PORT` | `8000` | Port the API listens on |
 | `APP_DEBUG` | `false` | Enable debug mode |
 | `APP_DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/registration` | PostgreSQL connection URL |
 | `APP_DATABASE_MIN_POOL_SIZE` | `2` | Minimum DB connection pool size |
