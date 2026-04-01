@@ -96,11 +96,8 @@ docker compose down -v
 Requires Docker only — no local Python installation needed.
 
 ```bash
-# Start test database
-docker compose -f docker-compose.test.yml up -d
-
 # Run integration tests
-docker compose run --rm app uv run pytest -m integration
+docker compose -f docker-compose.test.yml run --rm app-test uv run pytest -m integration
 
 # Tear down
 docker compose -f docker-compose.test.yml down

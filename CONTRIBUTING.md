@@ -36,20 +36,18 @@ Features are evaluated against the hexagonal architecture and existing design de
 
 ## Development Setup
 
-**Prerequisites:** Python 3.12+, Docker, [uv](https://github.com/astral-sh/uv)
+**Prerequisites:** Docker, [uv](https://github.com/astral-sh/uv) (for local development only)
 
 ```bash
 # Install dependencies
 uv sync
 
-# Start PostgreSQL
-docker compose up -d db
-
 # Run unit tests
 uv run pytest -m "not integration"
 
-# Run integration tests (requires Docker)
-docker compose run --rm test
+# Run integration tests (Docker only, no local Python needed)
+docker compose -f docker-compose.test.yml run --rm app-test uv run pytest -m integration
+docker compose -f docker-compose.test.yml down
 
 # Lint and format
 uv run ruff check src/ tests/
