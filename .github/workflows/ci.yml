@@ -73,3 +73,34 @@ jobs:
         run: uv run pytest -m integration
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/registration_test
+
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.8.11
+
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image with Paketo buildpacks
+        run: |
+          pack build ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --builder paketobuildpacks/builder-jammy-base \
+            --tag ${{ env.IMAGE_NAME }}:latest
+
+      - name: Push image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_NAME }}:latest
