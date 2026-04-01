@@ -54,6 +54,10 @@ packages = ["app"]
 module = ["asyncpg.*", "bcrypt.*", "yoyo.*"]
 ignore_missing_imports = true
 
+[tool.coverage.run]
+relative_files = true
+source = ["app"]
+
 [tool.ruff]
 target-version = "py313"
 src = ["src", "tests"]

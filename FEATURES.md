@@ -17,4 +17,10 @@ Feature inventory for the User Registration API.
 | Current user info (`GET /users/me`) | Done | API | `api/routers/users.py`, `api/dependencies.py` |
 | Integration tests | Done | Tests | `tests/integration/` |
 | Versioned database migrations (yoyo) | Done | Infrastructure | `infrastructure/database/migrations/` |
+| CI pipeline (lint, test, integration) | Done | CI/CD | `.github/workflows/ci.yml` |
+| Security scanning (CodeQL + Grype) | Done | CI/CD | `.github/workflows/codeql.yml`, `.github/workflows/security.yml` |
+| Dependency updates (Dependabot) | Done | CI/CD | `.github/dependabot.yml` |
+| Container image build (Paketo + GHCR) | Done | CI/CD | `.github/workflows/ci.yml` |
+| Test coverage reporting on PRs | Done | CI/CD | `.github/workflows/ci.yml` |
+| Graceful shutdown (uvicorn) | Done | Infrastructure | `Dockerfile`, `Procfile` |
 | Architecture documentation | Done | Docs | `ARCHITECTURE.md` |

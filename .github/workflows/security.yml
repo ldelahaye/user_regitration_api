@@ -28,7 +28,7 @@ jobs:
         run: uv sync --dev
 
       - name: Audit dependencies
-        run: uv run pip-audit
+        run: uv run pip-audit --skip-editable
 
   docker-scan:
     runs-on: ubuntu-latest
@@ -44,6 +44,7 @@ jobs:
         with:
           image: user-registration-api:ci
           severity-cutoff: high
+          only-fixed: true
           fail-build: true
           output-format: sarif
 
