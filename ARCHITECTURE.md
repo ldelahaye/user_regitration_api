@@ -81,7 +81,7 @@ sequenceDiagram
     DB-->>S: Result
     S->>E: Send email (activation code)
     E-->>S: OK / Error
-    Note over S: Email failure is caught and logged.<br/>User is persisted regardless.
+    Note over S: Email failure is caught and logged.<br/>User is persisted regardless.<br/>A new activation code can be requested via<br/>POST /users/activation-code
     S->>DB: COMMIT
     S-->>R: Domain Model
     R-->>M: HTTP Response
