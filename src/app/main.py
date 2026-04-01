@@ -85,15 +85,24 @@ register_exception_handlers(app)
 app.include_router(users_router)
 
 
-@app.get("/health", response_model=dict[str, str], status_code=status.HTTP_200_OK)
-async def health_check(request: Request) -> dict[str, str]:
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check(request: Request) -> dict[str, object]:
+    components: dict[str, str] = {}
+
     try:
         async with request.app.state.db_pool.acquire() as conn:
             await conn.execute("SELECT 1")
+        components["database"] = "up"
     except Exception:
         logger.warning("Health check failed: database unreachable")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unreachable",
         ) from None
-    return {"status": "healthy"}
+
+    email_service = getattr(request.app.state, "email_service", None)
+    if email_service is not None:
+        components["email"] = "up" if await email_service.is_available() else "down"
+
+    overall = "healthy" if all(v == "up" for v in components.values()) else "degraded"
+    return {"status": overall, "components": components}

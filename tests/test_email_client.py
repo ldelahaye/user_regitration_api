@@ -56,6 +56,20 @@ async def test_check_connectivity_logs_warning_on_failure(email_service: HttpEma
     await email_service.check_connectivity()
 
 
+async def test_is_available_returns_true_on_success(email_service: HttpEmailService) -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200))
+    email_service._client = httpx.AsyncClient(transport=transport)
+
+    assert await email_service.is_available() is True
+
+
+async def test_is_available_returns_false_on_failure(email_service: HttpEmailService) -> None:
+    transport = httpx.MockTransport(lambda request: (_ for _ in ()).throw(httpx.ConnectError("refused")))
+    email_service._client = httpx.AsyncClient(transport=transport)
+
+    assert await email_service.is_available() is False
+
+
 async def test_close_closes_client(email_service: HttpEmailService) -> None:
     await email_service.close()
     assert email_service._client.is_closed

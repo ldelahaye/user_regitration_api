@@ -17,6 +17,8 @@ Required:
 - A FastAPI middleware that rejects non-HTTPS requests in production
 - `Strict-Transport-Security` header on all responses
 
+> **Note:** Basic Auth is a requirement from the [original specification](user_registration_api.md). In production, TLS termination at the reverse proxy layer is mandatory to secure credentials in transit.
+
 ---
 
 ### 2. Rate Limiting
@@ -31,6 +33,8 @@ Rate limiting is an infrastructure concern and must be handled at the reverse pr
 
 The application does not implement rate limiting directly.
 
+> **Note:** if the target infrastructure already includes a reverse proxy or API gateway with built-in rate limiting, no additional action is required on the application side.
+
 ---
 
 ### 3. Secrets Management
@@ -42,6 +46,8 @@ Additional defaults that must never reach production:
 - `email_api_key` defaults to empty string
 
 Required: inject secrets via Docker Secrets, a secrets manager (Vault, AWS Secrets Manager), or CI/CD environment variables. No defaults should silently pass in a production environment.
+
+> **Note:** depends on the target infrastructure. Ideally, secrets should be managed through a dedicated secret manager (Vault, AWS Secrets Manager, GCP Secret Manager) rather than plain environment variables.
 
 ---
 
@@ -64,11 +70,12 @@ Implemented via yoyo-migrations with versioned SQL files in `infrastructure/data
 
 ---
 
-### 6. Health Check Does Not Cover the Email Service
+### 6. ~~Health Check Does Not Cover the Email Service~~ ✅ Resolved
 
-`GET /health` checks only the database. A load balancer routing on this endpoint will not detect an email service outage — all registrations will fail with `502` without any health signal.
-
-Fix: extend the health check to probe the email service connectivity and return a degraded status when it is unreachable.
+`GET /health` now checks both database and email service connectivity. Returns a structured response with component statuses:
+- `{"status": "healthy", "components": {"database": "up", "email": "up"}}` — all services operational (200)
+- `{"status": "degraded", "components": {"database": "up", "email": "down"}}` — email unreachable (200)
+- `503` — database unreachable
 
 ---
 
@@ -162,7 +169,7 @@ Fix: integrate with an alerting system (PagerDuty, OpsGenie) or configure log-ba
 | P0 | Secrets management — no defaults in production | Infrastructure |
 | P0 | Real email provider configured | Configuration |
 | ~~P1~~ | ~~Versioned schema migrations~~ | ✅ Done |
-| P1 | Health check covers email service | ~1h |
+| ~~P1~~ | ~~Health check covers email service~~ | ✅ Done |
 | P1 | Email enumeration — HTTP 409 → 202 | ~30 min |
 | P1 | Graceful shutdown + worker configuration | ~1h |
 | P2 | Cleanup job for unactivated accounts | ~2h |
