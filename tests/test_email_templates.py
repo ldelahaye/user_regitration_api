@@ -18,7 +18,7 @@ def test_load_templates_loads_all_languages() -> None:
 
 
 def test_render_injects_code_and_validity() -> None:
-    subject, body = render("5678", 10, "en")
+    _subject, body = render("5678", 10, "en")
 
     assert "5678" in body
     assert "10" in body

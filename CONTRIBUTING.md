@@ -100,7 +100,7 @@ Signed-off-by: Your Name <your@email.com>
 
 1. Branch off `main`
 2. Keep the PR focused — one feature or fix per PR
-3. All CI checks must pass (`lint-and-test` + `integration-tests`)
+3. All CI checks must pass (`lint` + `test` + `integration-test`)
 4. Self-review against [CLAUDE.md](CLAUDE.md) before requesting review
 5. Write or update tests for any changed behavior (one test = one unique behavior)
 6. Update documentation if the change affects public-facing behavior or architecture
