@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         load_templates()
 
     async with _startup_phase("database migrations"):
-        await run_migrations(pool)
+        await run_migrations(settings.database_url.get_secret_value())
 
     logger.info("Application startup complete")
     yield
